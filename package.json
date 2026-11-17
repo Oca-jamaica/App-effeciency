@@ -10,11 +10,13 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "db:test": "node supabase/tests/run.mjs",
-    "db:start": "bash supabase/tests/start-local-postgres.sh"
+    "db:start": "bash supabase/tests/start-local-postgres.sh",
+    "preview:build": "node apps/web-preview/build.mjs"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
     "@types/pg": "^8.23.1",
+    "esbuild": "^0.28.2",
     "pg": "^8.23.1"
   }
 }
