@@ -36,6 +36,9 @@ for (const file of readdirSync(migrationsDir).filter((f) => f.endsWith('.sql')).
 await db.end();
 
 const tests = readdirSync(here).filter((f) => f.endsWith('.test.ts')).map((f) => join(here, f));
+// Device ↔ server integration tests live next to the sync engine.
+const syncDir = join(here, '..', '..', 'apps', 'mobile', 'src', 'data', 'sync');
+tests.push(...readdirSync(syncDir).filter((f) => f.endsWith('.integration.test.ts')).map((f) => join(syncDir, f)));
 const result = spawnSync(process.execPath, ['--test', '--test-concurrency=1', ...tests], {
   stdio: 'inherit',
   env: { ...process.env, TEST_DATABASE_URL: url.toString() },
