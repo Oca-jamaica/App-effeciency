@@ -669,14 +669,16 @@ export function planDay(input: PlanInput): PlanResult {
       });
     };
 
-    // Stability: keep previous automatic placements that are still valid.
+    // Stability: keep previous automatic placements that are still valid. The reason is the one a fresh
+    // placement in that slot would get, so an unchanged plan produces byte-identical blocks.
     for (const prev of previous.filter((b) => b.taskId === t.id).sort((a, b) => a.start - b.start)) {
       if (remaining <= 0) break;
       const len = Math.min(minutes(prev.end - prev.start), remaining, focusBudget - focusUsed);
       if (len < Math.min(t.minChunkMinutes, remaining)) continue;
       const slot = { start: prev.start, end: prev.start + len * MINUTE };
       if (slot.start >= frame.start && state.isFree(slot) && state.runLength(slot.start, slot.end) <= state.breakAfter) {
-        place(slot, 'kept from your current plan');
+        const tier = tiers.find((x) => x.ranges === null || x.ranges.some((r) => r.start <= slot.start && r.end >= slot.end));
+        place(slot, tier?.label ?? null);
       }
     }
 

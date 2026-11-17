@@ -49,13 +49,13 @@ export class StoreTx {
     return this.store.now().toISOString();
   }
 
-  async get<T extends Row = Row>(table: SyncedTableName, id: string): Promise<T | null> {
+  async get<T extends { id: string } = Row>(table: SyncedTableName, id: string): Promise<T | null> {
     const def = tableDef(table);
     const raw = await this.sql.first<Record<string, SqlValue>>(`SELECT * FROM "${table}" WHERE id = ?`, [id]);
-    return raw ? (decodeRow(def, raw) as T) : null;
+    return raw ? (decodeRow(def, raw) as unknown as T) : null;
   }
 
-  async insert<T extends Row = Row>(table: SyncedTableName, values: Record<string, unknown>, opts: WriteOptions = {}): Promise<T> {
+  async insert<T extends { id: string } = Row>(table: SyncedTableName, values: Record<string, unknown>, opts: WriteOptions = {}): Promise<T> {
     const def = tableDef(table);
     const now = this.nowIso();
     const row: Record<string, unknown> = {};
@@ -78,10 +78,10 @@ export class StoreTx {
     for (const c of def.columns) if (!SERVER_MANAGED.has(c.name)) patch[c.name] = row[c.name];
     await this.enqueue(table, row.id as string, 'upsert', patch, opts.meta);
     this.touched.add(table);
-    return row as T;
+    return row as unknown as T;
   }
 
-  async update<T extends Row = Row>(
+  async update<T extends { id: string } = Row>(
     table: SyncedTableName,
     id: string,
     changes: Record<string, unknown>,
@@ -98,12 +98,12 @@ export class StoreTx {
       if (!col.nullable && (v === null || v === undefined)) throw new StoreError(`${table}.${k} is required`);
       if (JSON.stringify(current[k] ?? null) !== JSON.stringify(v ?? null)) patch[k] = v ?? null;
     }
-    if (Object.keys(patch).length === 0 && !opts.meta) return current as T;
+    if (Object.keys(patch).length === 0 && !opts.meta) return current as unknown as T;
     const next = { ...current, ...patch, updated_at: this.nowIso() };
     await this.writeRow(def, next);
     await this.enqueue(table, id, 'upsert', patch, opts.meta);
     this.touched.add(table);
-    return next as T;
+    return next as unknown as T;
   }
 
   /** Soft delete: the row is hidden everywhere and restorable for 30 days. */
@@ -176,11 +176,11 @@ export class Store {
     return result;
   }
 
-  insert<T extends Row = Row>(table: SyncedTableName, values: Record<string, unknown>, opts?: WriteOptions): Promise<T> {
+  insert<T extends { id: string } = Row>(table: SyncedTableName, values: Record<string, unknown>, opts?: WriteOptions): Promise<T> {
     return this.write((tx) => tx.insert<T>(table, values, opts));
   }
 
-  update<T extends Row = Row>(table: SyncedTableName, id: string, changes: Record<string, unknown>, opts?: WriteOptions): Promise<T> {
+  update<T extends { id: string } = Row>(table: SyncedTableName, id: string, changes: Record<string, unknown>, opts?: WriteOptions): Promise<T> {
     return this.write((tx) => tx.update<T>(table, id, changes, opts));
   }
 
@@ -192,16 +192,16 @@ export class Store {
     return this.write((tx) => tx.restore(table, id));
   }
 
-  async get<T extends Row = Row>(table: SyncedTableName, id: string): Promise<T | null> {
+  async get<T extends { id: string } = Row>(table: SyncedTableName, id: string): Promise<T | null> {
     const raw = await this.db.first<Record<string, SqlValue>>(`SELECT * FROM "${table}" WHERE id = ?`, [id]);
-    return raw ? (decodeRow(tableDef(table), raw) as T) : null;
+    return raw ? (decodeRow(tableDef(table), raw) as unknown as T) : null;
   }
 
   /**
    * Live rows of a table (soft-deleted rows excluded unless asked). `where` is a SQL fragment with `?`
    * placeholders; callers never interpolate user input into it.
    */
-  async list<T extends Row = Row>(
+  async list<T extends { id: string } = Row>(
     table: SyncedTableName,
     opts: { where?: string; params?: SqlValue[]; orderBy?: string; limit?: number; includeDeleted?: boolean } = {},
   ): Promise<T[]> {
@@ -215,7 +215,7 @@ export class Store {
       (opts.limit ? ` LIMIT ${Math.floor(opts.limit)}` : '');
     const raws = await this.db.all<Record<string, SqlValue>>(sql, opts.params ?? []);
     const def = tableDef(table);
-    return raws.map((r) => decodeRow(def, r) as T);
+    return raws.map((r) => decodeRow(def, r) as unknown as T);
   }
 
   /** Raw read for aggregate queries. */
