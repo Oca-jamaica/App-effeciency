@@ -12,6 +12,7 @@ import {
   localToUtc,
   parseTime,
   planDay,
+  utcToLocalDate,
   utcToLocalMinutes,
   type AvailabilityWindow,
   type ExistingBlock,
@@ -119,6 +120,15 @@ export async function buildPlanInput(store: Store, date: string, now: number, ct
        FROM schedule_blocks WHERE deleted_at IS NULL AND status IN ('done','partial') AND task_id IS NOT NULL GROUP BY task_id`,
     );
     for (const r of rows) recorded.set(r.task_id, r.minutes);
+    // Work already planned on earlier days of the horizon counts too, so previews of future days never
+    // double-book a task that today's plan already covers.
+    const planned = await store.query<{ task_id: string; minutes: number }>(
+      `SELECT task_id, SUM(CAST((julianday(ends_at) - julianday(starts_at)) * 1440 AS INTEGER)) AS minutes
+       FROM schedule_blocks WHERE deleted_at IS NULL AND status IN ('planned','in_progress') AND task_id IS NOT NULL
+       AND block_date < ? AND block_date >= ? GROUP BY task_id`,
+      [date, utcToLocalDate(now, c.timeZone)],
+    );
+    for (const r of planned) recorded.set(r.task_id, (recorded.get(r.task_id) ?? 0) + r.minutes);
   }
   const catWindow = new Map(categories.map((cat) => [cat.id, CATEGORY_WINDOWS[cat.name.toLowerCase()] ?? null]));
 

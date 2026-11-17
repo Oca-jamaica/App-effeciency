@@ -1,0 +1,41 @@
+# Supabase CLI configuration for ASCEND (used by `supabase start`, `db push`, `functions deploy`).
+project_id = "ascend"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+major_version = 17
+
+[auth]
+enabled = true
+site_url = "ascend://"
+additional_redirect_urls = ["ascend://", "exp://"]
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+enable_signup = true
+minimum_password_length = 8
+
+[auth.email]
+enable_signup = true
+enable_confirmations = true
+double_confirm_changes = true
+otp_length = 6
+otp_expiry = 3600
+
+# ASCEND verifies email and resets passwords with 6-digit codes typed into the app.
+[auth.email.template.confirmation]
+subject = "Your ASCEND verification code"
+content_path = "./supabase/templates/confirmation.html"
+
+[auth.email.template.recovery]
+subject = "Your ASCEND password reset code"
+content_path = "./supabase/templates/recovery.html"
+
+[functions.delete-account]
+verify_jwt = true

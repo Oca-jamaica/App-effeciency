@@ -206,3 +206,40 @@ Acceptance criteria covered: **19–22**.
 | 20 | No cross-user access | 2 onwards (every migration) · 7 (penetration tests) |
 | 21 | Works on iOS and Android | every stage (Expo Go) · 7–8 (builds) |
 | 22 | Consistent design | 2 (system) · 7 (pass) |
+
+## Implementation log
+
+### Stages 2–3 (built)
+
+Delivered: monorepo; design system (`apps/mobile/src/ui`); Expo Router with the five tabs; email
+sign-up with code verification, sign-in, code-based password reset and encrypted session storage;
+migrations for identity, preferences, categories and all Stage 3 tables with RLS; the sync API; the
+on-device store with outbox and sync engine; Home, Goals (priority drag-and-drop, milestones,
+checklist, notes, links, progress), Habits (all frequencies, logs, history calendar, consistency),
+Tasks (states, subtasks, recurrence, history, smart lists, split), Calendar (day grid with drag-to-move,
+week, month, recurring events, locked commitments), the scheduler with missed-work flow, quick capture,
+a real-data Insights overview, and settings (theme, scheduling, preferred hours, categories, sync,
+export, account deletion).
+
+Deviations from the Stage 1 plan, and why:
+
+- **Drizzle was not used.** The local schema and codecs are generated from the shared table registry
+  (`packages/domain/src/schema.ts`), which a test checks against Postgres. One source of truth, no
+  second schema to keep in step, and the whole data layer runs under Node for testing.
+- **No bottom-sheet library.** Pickers and editors use a small `Sheet` on the native `Modal`; quick
+  capture uses the native form-sheet presentation.
+- **No `rrule`/`date-fns-tz`.** Recurrence (RFC 5545 subset) and timezone maths are small, fully tested
+  modules in `packages/domain`.
+- **Domain tests run on Node's built-in test runner** (TypeScript type-stripping and `node:sqlite`),
+  so the scheduler, data layer and repositories are tested without a simulator.
+- **Future days are previewed, not saved.** Only today's plan is persisted; viewing tomorrow shows what
+  the scheduler would do, so a task is never double-booked across days.
+
+Known limitations (to address in later stages):
+
+- Not yet run on a physical device or simulator.
+- Notifications (habit/task reminders) are stored but not yet scheduled on the device — Stage 4 adds
+  local notifications together with the focus timer.
+- The `delete-account` Edge Function is written but was not executed in this environment (no Deno or
+  Supabase stack available); test it against your project before relying on it.
+- Device calendar import (read-only) is planned with Stage 4.

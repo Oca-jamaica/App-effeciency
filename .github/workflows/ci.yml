@@ -1,0 +1,34 @@
+name: CI
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Unit tests (domain, device store, features)
+        run: npm test
+      - name: Database, RLS and two-device sync tests
+        run: npm run db:test
+        env:
+          DATABASE_URL: postgres://postgres@localhost:5432/postgres
+      - name: Bundle for iOS and Android
+        working-directory: apps/mobile
+        run: npx expo export --platform ios --platform android --output-dir /tmp/expo-export

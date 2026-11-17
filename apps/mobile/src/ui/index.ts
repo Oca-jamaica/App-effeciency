@@ -6,3 +6,4 @@ export * from './controls';
 export * from './layout';
 export * from './inputs';
 export * from './feedback';
+export * from './ReorderableList';
