@@ -115,11 +115,20 @@ export async function buildPlanInput(store: Store, date: string, now: number, ct
   // Work already recorded against each task (finished or partly finished blocks).
   const recorded = new Map<string, number>();
   if (tasks.length) {
+    // Finished blocks without their own timer session, plus every completed focus session for the task
+    // (a block timed with the focus timer is counted once, through its session).
     const rows = await store.query<{ task_id: string; minutes: number }>(
-      `SELECT task_id, SUM(COALESCE(actual_minutes, CAST((julianday(ends_at) - julianday(starts_at)) * 1440 AS INTEGER))) AS minutes
-       FROM schedule_blocks WHERE deleted_at IS NULL AND status IN ('done','partial') AND task_id IS NOT NULL GROUP BY task_id`,
+      `SELECT task_id, SUM(minutes) AS minutes FROM (
+         SELECT b.task_id, COALESCE(b.actual_minutes, CAST((julianday(b.ends_at) - julianday(b.starts_at)) * 1440 AS INTEGER)) AS minutes
+         FROM schedule_blocks b
+         WHERE b.deleted_at IS NULL AND b.status IN ('done','partial') AND b.task_id IS NOT NULL
+           AND NOT EXISTS (SELECT 1 FROM focus_sessions f WHERE f.schedule_block_id = b.id AND f.deleted_at IS NULL AND f.status = 'completed')
+         UNION ALL
+         SELECT task_id, duration_seconds / 60 FROM focus_sessions
+         WHERE deleted_at IS NULL AND status = 'completed' AND task_id IS NOT NULL
+       ) GROUP BY task_id`,
     );
-    for (const r of rows) recorded.set(r.task_id, r.minutes);
+    for (const r of rows) recorded.set(r.task_id, Math.round(r.minutes));
     // Work already planned on earlier days of the horizon counts too, so previews of future days never
     // double-book a task that today's plan already covers.
     const planned = await store.query<{ task_id: string; minutes: number }>(

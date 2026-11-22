@@ -80,6 +80,8 @@ export interface Goal extends BaseRow {
 
 export interface Milestone extends BaseRow {
   goal_id: string | null;
+  project_id: string | null;
+  stage_id: string | null;
   title: string;
   description: string | null;
   deadline: string | null;
@@ -114,6 +116,7 @@ export interface Note extends BaseRow {
   folder: string | null;
   pinned: boolean;
   tags: string[];
+  project_id: string | null;
 }
 
 export type KnowledgeKind = 'video' | 'article' | 'link' | 'book' | 'course' | 'note' | 'info' | 'file';
@@ -128,6 +131,8 @@ export interface KnowledgeItem extends BaseRow {
   goal_id: string | null;
   milestone_id: string | null;
   is_favorite: boolean;
+  project_id: string | null;
+  skill_id: string | null;
 }
 
 export type FrequencyKind = 'daily' | 'weekdays' | 'times_per_week' | 'times_per_month' | 'every_n_days';
@@ -187,6 +192,7 @@ export interface Task extends BaseRow {
   recurrence_template_id: string | null;
   completed_at: string | null;
   rank: string;
+  project_id: string | null;
 }
 
 export interface TaskEvent extends BaseRow {
@@ -244,4 +250,243 @@ export interface ScheduleBlock extends BaseRow {
   reason: string | null;
   algorithm_version: string | null;
   completed_at: string | null;
+}
+
+// ───────────────────────────── Stage 4 ─────────────────────────────
+
+export interface Project extends BaseRow {
+  kind: 'project' | 'mission';
+  title: string;
+  objective: string | null;
+  description: string | null;
+  status: 'planning' | 'active' | 'on_hold' | 'completed' | 'archived';
+  category_id: string | null;
+  goal_id: string | null;
+  start_date: string | null;
+  deadline: string | null;
+  completed_at: string | null;
+  completion_summary: string | null;
+  rank: string;
+}
+
+export interface ProjectStage extends BaseRow {
+  project_id: string;
+  title: string;
+  description: string | null;
+  deadline: string | null;
+  status: 'open' | 'done';
+  rank: string;
+}
+
+export interface Skill extends BaseRow {
+  parent_id: string | null;
+  name: string;
+  description: string | null;
+  category_id: string | null;
+  goal_id: string | null;
+  level: number;
+  target_level: number | null;
+  rank: string;
+}
+
+export interface SkillProgress extends BaseRow {
+  skill_id: string;
+  level: number | null;
+  note: string | null;
+  source: 'manual' | 'training' | 'learning' | 'project';
+  source_id: string | null;
+  recorded_at: string;
+}
+
+export interface LearningItem extends BaseRow {
+  kind: 'book' | 'course' | 'article' | 'topic' | 'video' | 'podcast';
+  title: string;
+  author_or_provider: string | null;
+  url: string | null;
+  status: 'want' | 'in_progress' | 'completed' | 'dropped';
+  progress_current: number | null;
+  progress_total: number | null;
+  progress_unit: 'pages' | 'chapters' | 'lessons' | 'percent' | 'minutes';
+  started_on: string | null;
+  completed_on: string | null;
+  rating: number | null;
+  notes: string | null;
+  goal_id: string | null;
+  skill_id: string | null;
+}
+
+export type FocusKind = 'focus' | 'study' | 'learning' | 'deep_work';
+export interface FocusSession extends BaseRow {
+  kind: FocusKind;
+  source: 'timer' | 'manual';
+  started_at: string;
+  ended_at: string | null;
+  duration_seconds: number;
+  pause_seconds: number;
+  planned_minutes: number | null;
+  task_id: string | null;
+  goal_id: string | null;
+  project_id: string | null;
+  learning_item_id: string | null;
+  schedule_block_id: string | null;
+  quality: number | null;
+  notes: string | null;
+  status: 'running' | 'completed' | 'abandoned';
+}
+
+export interface StudyVideo extends BaseRow {
+  focus_session_id: string | null;
+  task_id: string | null;
+  goal_id: string | null;
+  recorded_on: string;
+  storage_path: string;
+  mime_type: 'video/mp4' | 'video/quicktime';
+  size_bytes: number;
+  duration_seconds: number | null;
+  session_minutes: number | null;
+  notes: string | null;
+  upload_status: 'pending' | 'uploading' | 'ready' | 'failed';
+  upload_error: string | null;
+}
+
+export interface Exercise extends BaseRow {
+  name: string;
+  kind: 'strength' | 'cardio' | 'mobility' | 'skill' | 'other';
+  muscle_group: string | null;
+  equipment: string | null;
+  weight_unit: 'kg' | 'lb';
+  notes: string | null;
+}
+
+export interface WorkoutPlan extends BaseRow {
+  name: string;
+  description: string | null;
+  goal_id: string | null;
+  rank: string;
+}
+
+export interface WorkoutPlanItem extends BaseRow {
+  plan_id: string;
+  exercise_id: string;
+  position: number;
+  target_sets: number;
+  target_reps: number | null;
+  target_weight: number | null;
+  rest_seconds: number | null;
+  notes: string | null;
+}
+
+export interface WorkoutSession extends BaseRow {
+  plan_id: string | null;
+  title: string;
+  started_at: string;
+  ended_at: string | null;
+  schedule_block_id: string | null;
+  perceived_effort: number | null;
+  notes: string | null;
+}
+
+export interface WorkoutSet extends BaseRow {
+  session_id: string;
+  exercise_id: string;
+  set_index: number;
+  reps: number | null;
+  weight: number | null;
+  duration_seconds: number | null;
+  distance_m: number | null;
+  rpe: number | null;
+  is_warmup: boolean;
+  completed_at: string | null;
+}
+
+export interface Sport extends BaseRow {
+  name: string;
+  position: string | null;
+  notes: string | null;
+}
+
+export interface TrainingSession extends BaseRow {
+  sport_id: string;
+  session_type: 'technical' | 'tactical' | 'match' | 'conditioning' | 'recovery' | 'other';
+  started_at: string;
+  duration_minutes: number;
+  intensity: number | null;
+  performance_rating: number | null;
+  focus: string | null;
+  notes: string | null;
+  schedule_block_id: string | null;
+  goal_id: string | null;
+}
+
+export interface TrainingSessionSkill extends BaseRow {
+  training_session_id: string;
+  skill_id: string;
+  minutes: number | null;
+  rating: number | null;
+  note: string | null;
+}
+
+export interface Person extends BaseRow {
+  name: string;
+  birthday_month: number | null;
+  birthday_day: number | null;
+  birth_year: number | null;
+  relationship: string | null;
+  notes: string | null;
+}
+
+export interface Experience extends BaseRow {
+  title: string;
+  description: string | null;
+  category: 'place' | 'event' | 'activity' | 'skill' | 'other';
+  status: 'someday' | 'planned' | 'done';
+  target_date: string | null;
+  completed_on: string | null;
+  location: string | null;
+  rating: number | null;
+  notes: string | null;
+}
+
+export interface JournalEntry extends BaseRow {
+  entry_date: string;
+  went_well: string | null;
+  could_improve: string | null;
+  learned: string | null;
+  looking_forward: string | null;
+  free_text: string | null;
+}
+
+export interface Decision extends BaseRow {
+  title: string;
+  decided_on: string | null;
+  context: string | null;
+  alternatives: string | null;
+  reasoning: string | null;
+  expected_outcome: string | null;
+  confidence: number | null;
+  review_on: string | null;
+  actual_outcome: string | null;
+  reflection: string | null;
+  status: 'open' | 'decided' | 'reviewed';
+}
+
+export interface Idea extends BaseRow {
+  title: string;
+  description: string | null;
+  category_id: string | null;
+  research: string | null;
+  potential: number | null;
+  next_steps: string | null;
+  status: 'seed' | 'exploring' | 'validated' | 'parked' | 'converted';
+  project_id: string | null;
+}
+
+export interface SleepLog extends BaseRow {
+  sleep_date: string;
+  bed_at: string | null;
+  wake_at: string | null;
+  duration_minutes: number | null;
+  energy: number | null;
+  recovery: number | null;
+  notes: string | null;
 }

@@ -23,6 +23,7 @@ export const taskInput = z
     goal_id: z.string().uuid().nullable().optional(),
     milestone_id: z.string().uuid().nullable().optional(),
     parent_task_id: z.string().uuid().nullable().optional(),
+    project_id: z.string().uuid().nullable().optional(),
     recurrence_rule: z.string().max(200).nullable().optional(),
   })
   .refine((t) => !t.due_time || t.due_date, { message: 'Set a date for the deadline', path: ['due_date'] })
@@ -84,6 +85,7 @@ export async function createTask(store: Store, input: TaskInput, origin: TaskEve
       goal_id: goalId,
       milestone_id: v.milestone_id ?? null,
       parent_task_id: v.parent_task_id ?? null,
+      project_id: v.project_id ?? null,
       recurrence_rule: v.recurrence_rule ?? null,
       rank,
     });
@@ -99,6 +101,7 @@ const TRACKED: Record<string, string> = {
   estimated_minutes: 'estimate_changed',
   goal_id: 'linked',
   milestone_id: 'linked',
+  project_id: 'linked',
 };
 
 export async function updateTask(store: Store, id: string, input: Partial<TaskInput>, origin: TaskEvent['origin'] = 'user'): Promise<Task> {
@@ -125,6 +128,7 @@ export async function updateTask(store: Store, id: string, input: Partial<TaskIn
     preferred_window: merged.preferred_window,
     goal_id: goalId,
     milestone_id: merged.milestone_id ?? null,
+    project_id: merged.project_id ?? null,
     recurrence_rule: merged.recurrence_rule ?? null,
   };
   if (input.status && current.status !== 'completed' && current.status !== 'cancelled') changes.status = input.status;
@@ -175,7 +179,7 @@ export async function completeTask(store: Store, id: string, today: string): Pro
     if (!next) return null;
     const shift = (d: string | null) => (d ? next : null);
     const nextTask = await tx.insert<Task>('tasks', {
-      ...pick(task, ['title', 'description', 'category_id', 'priority', 'due_time', 'estimated_minutes', 'splittable', 'min_chunk_minutes', 'preferred_window', 'goal_id', 'milestone_id', 'recurrence_rule', 'rank']),
+      ...pick(task, ['title', 'description', 'category_id', 'priority', 'due_time', 'estimated_minutes', 'splittable', 'min_chunk_minutes', 'preferred_window', 'goal_id', 'milestone_id', 'project_id', 'recurrence_rule', 'rank']),
       status: 'planned',
       due_date: shift(task.due_date),
       do_date: task.due_date ? null : next,
