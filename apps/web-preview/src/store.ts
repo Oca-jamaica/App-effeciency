@@ -13,7 +13,7 @@ export interface Check { id: string; kind: 'check'; goalId: string; title: strin
 export interface Note { id: string; kind: 'note'; goalId: string | null; type: 'strategy' | 'info' | 'learning' | 'problem' | 'next_steps' | 'idea'; text: string; createdAt: string; example?: boolean }
 export interface Link { id: string; kind: 'link'; goalId: string; title: string; url: string; createdAt: string; example?: boolean }
 export interface TaskHistory { at: string; what: string }
-export interface Task { id: string; kind: 'task'; title: string; priority: Priority; status: 'inbox' | 'planned' | 'in_progress' | 'completed' | 'cancelled'; due: string | null; doDate: string | null; estimate: number | null; splittable: boolean; window: Window; goalId: string | null; milestoneId: string | null; completedAt: string | null; createdAt: string; history: TaskHistory[]; example?: boolean }
+export interface Task { id: string; kind: 'task'; title: string; priority: Priority; status: 'inbox' | 'planned' | 'in_progress' | 'completed' | 'cancelled'; due: string | null; doDate: string | null; estimate: number | null; splittable: boolean; window: Window; goalId: string | null; milestoneId: string | null; projectId?: string | null; completedAt: string | null; createdAt: string; history: TaskHistory[]; example?: boolean }
 export interface Habit { id: string; kind: 'habit'; name: string; freq: 'daily' | 'weekdays' | 'times_per_week' | 'times_per_month' | 'every_n_days'; days: number[] | null; times: number | null; interval: number | null; startDate: string; duration: number | null; window: Window; time: string | null; status: 'active' | 'paused' | 'archived'; goalId: string | null; rank: number; createdAt: string; example?: boolean }
 export interface HabitLog { id: string; kind: 'hlog'; habitId: string; date: string; status: 'done' | 'partial' | 'skipped'; example?: boolean }
 export interface CalEvent { id: string; kind: 'event'; title: string; date: string; start: number; end: number; repeat: 'none' | 'daily' | 'weekdays' | 'weekly'; exdates: string[]; locked: boolean; busy: boolean; type: 'event' | 'class' | 'work' | 'training' | 'social'; example?: boolean }
@@ -21,7 +21,23 @@ export interface Block { id: string; kind: 'block'; date: string; start: number;
 export interface StudyWindow { days: number[]; from: string; to: string }
 export interface Prefs { id: 'prefs'; kind: 'prefs'; dayStart: string; dayEnd: string; maxFocus: number; minFree: number; breakAfter: number; breakLen: number; buffer: number; defaultEstimate: number; study: StudyWindow | null; theme: 'system' | 'light' | 'dark'; name: string }
 
-export type Rec = Goal | Milestone | Check | Note | Link | Task | Habit | HabitLog | CalEvent | Block | Prefs;
+
+// Stage 4: focus, projects, training, personal collections.
+export type FocusType = 'focus' | 'study' | 'learning' | 'deep_work';
+export interface Timer { id: 'timer'; kind: 'timer'; sessionId: string; startedAt: number; pausedAt: number | null; pausedMs: number; plannedMinutes: number | null }
+export interface FocusSession { id: string; kind: 'focus'; type: FocusType; status: 'running' | 'completed' | 'abandoned'; source: 'timer' | 'manual'; date: string; startedAt: string; seconds: number; pauseSeconds: number; plannedMinutes: number | null; taskId: string | null; projectId: string | null; blockId?: string | null; quality: number | null; notes: string; example?: boolean }
+export interface Project { id: string; kind: 'project'; type: 'project' | 'mission'; title: string; objective: string; status: 'planning' | 'active' | 'on_hold' | 'completed' | 'archived'; deadline: string | null; summary: string; rank: number; createdAt: string; example?: boolean }
+export interface Stage { id: string; kind: 'stage'; projectId: string; title: string; done: boolean; rank: number; example?: boolean }
+export interface Exercise { id: string; kind: 'exercise'; name: string; muscle: string; example?: boolean }
+export interface Workout { id: string; kind: 'workout'; date: string; title: string; status: 'open' | 'done'; notes: string; startedAt: string; example?: boolean }
+export interface WorkoutSet { id: string; kind: 'set'; workoutId: string; exerciseId: string; date: string; weight: number | null; reps: number; at: string; example?: boolean }
+export interface Training { id: string; kind: 'training'; date: string; sport: string; minutes: number; intensity: number; focus: string; notes: string; skillIds: string[]; example?: boolean }
+export interface Skill { id: string; kind: 'skill'; name: string; area: string; level: number; target: number | null; history: { at: string; level: number }[]; example?: boolean }
+export type CollKey = 'journal' | 'decisions' | 'learning' | 'vault' | 'ideas' | 'people' | 'experiences' | 'sleep';
+export interface Item { id: string; kind: 'item'; coll: CollKey; v: Record<string, string>; createdAt: string; updatedAt: string; example?: boolean }
+
+export type Rec = Goal | Milestone | Check | Note | Link | Task | Habit | HabitLog | CalEvent | Block | Prefs
+  | Timer | FocusSession | Project | Stage | Exercise | Workout | WorkoutSet | Training | Skill | Item;
 
 export const DEFAULT_PREFS: Prefs = {
   id: 'prefs', kind: 'prefs', dayStart: '07:00', dayEnd: '22:30', maxFocus: 360, minFree: 120, breakAfter: 90, breakLen: 15, buffer: 10,

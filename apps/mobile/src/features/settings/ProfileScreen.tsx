@@ -1,6 +1,6 @@
 import { formatTime, parseTime } from '@ascend/domain';
 import { router } from 'expo-router';
-import { CalendarClock, Download, LogOut, RefreshCw, Shapes, SlidersHorizontal, Trash2, UserRound } from 'lucide-react-native';
+import { Bell, BookOpen, BookMarked, CalendarClock, Download, Lightbulb, LogOut, MapPin, Moon, NotebookPen, RefreshCw, Scale, Shapes, SlidersHorizontal, StickyNote, Trash2, UserRound, Users } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { useData, useLive, useStore } from '@/data/DataProvider';
@@ -18,6 +18,18 @@ import {
   AVAILABILITY_LABELS, addAvailability, createCategory, deleteCategory, listAvailability, listCategories, removeAvailability, updateCategory,
   updatePreferences, updateProfile,
 } from './repo';
+
+const DEV_LINKS = [
+  { key: 'journal', title: 'Daily Journal', icon: NotebookPen },
+  { key: 'decisions', title: 'Decision Journal', icon: Scale },
+  { key: 'learning', title: 'Reading & Learning', icon: BookOpen },
+  { key: 'vault', title: 'Knowledge Vault', icon: BookMarked },
+  { key: 'ideas', title: 'Idea Incubator', icon: Lightbulb },
+  { key: 'notes', title: 'Workspace', icon: StickyNote },
+  { key: 'people', title: 'People & birthdays', icon: Users },
+  { key: 'experiences', title: 'Experiences', icon: MapPin },
+  { key: 'sleep', title: 'Sleep & Recovery', icon: Moon },
+];
 
 export function ProfileScreen() {
   const { session, signOut } = useAuth();
@@ -55,11 +67,20 @@ export function ProfileScreen() {
         />
       </Section>
 
+      <Section title="Personal development">
+        <Group>
+          {DEV_LINKS.map((l) => (
+            <ListRow key={l.key} icon={l.icon} title={l.title} chevron onPress={() => router.push({ pathname: '/(app)/c/[key]', params: { key: l.key } })} />
+          ))}
+        </Group>
+      </Section>
+
       <Section title="Planning">
         <Group>
           <ListRow icon={SlidersHorizontal} title="Scheduling" subtitle="Day hours, focus limit, breaks, free time" chevron onPress={() => router.push('/(app)/settings/scheduling')} />
           <ListRow icon={CalendarClock} title="Preferred hours" subtitle="Study, work, training and protected time" chevron onPress={() => router.push('/(app)/settings/hours')} />
           <ListRow icon={Shapes} title="Categories" chevron onPress={() => router.push('/(app)/settings/categories')} />
+          <ListRow icon={Bell} title="Reminders" subtitle="Habit and task reminders, quiet hours" chevron onPress={() => router.push('/(app)/settings/notifications')} />
         </Group>
       </Section>
 

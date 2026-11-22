@@ -156,7 +156,7 @@ export interface ProjectProgressInput {
   stages: readonly { status: string }[];
 }
 
-/** Milestones count most; tasks fill in when there are none. Stages are reported separately. */
+/** Milestones count most; tasks fill in when there are none, and stages when there are neither. */
 export function projectProgress(p: ProjectProgressInput): { ratio: number | null; label: string; stagesDone: number; stagesTotal: number } {
   const stagesTotal = p.stages.length;
   const stagesDone = p.stages.filter((s) => s.status === 'done').length;
@@ -170,7 +170,8 @@ export function projectProgress(p: ProjectProgressInput): { ratio: number | null
     const done = tasks.filter((t) => t.status === 'completed').length;
     return { ratio: done / tasks.length, label: `${done} of ${tasks.length} tasks`, stagesDone, stagesTotal };
   }
-  return { ratio: null, label: 'Add milestones or tasks', stagesDone, stagesTotal };
+  if (stagesTotal) return { ratio: stagesDone / stagesTotal, label: `${stagesDone} of ${stagesTotal} stages`, stagesDone, stagesTotal };
+  return { ratio: null, label: 'Add stages, milestones or tasks', stagesDone, stagesTotal };
 }
 
 // ───────────────────────────── learning & sleep ─────────────────────────────

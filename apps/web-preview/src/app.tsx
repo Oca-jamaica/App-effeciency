@@ -9,186 +9,16 @@ import {
   minutesBetween, moveMissedTo, previewDay, replanToday, setHabitLog,
 } from './logic.ts';
 
+import {
+  Badge, Bar, Btn, Check, Chips, ConfirmButton, DAYS, DueBadge, Empty, Field, IconBtn, NavCtx, type Node, type Route, Row, Section, Seg, Sheet, Stepper, ToastCtx, type ToastFn, hhmm, mins, useData, useNav, useNow, useToast,
+} from './ui.tsx';
+import {
+  COLLS, CollectionScreen, FocusPane, ProjectDetail, ProjectForm, ProjectList, SkillDetail, SocialPane, Stage4Insights, TrainingPane, WorkoutDetail, getTimer, stage4Examples, startFocus,
+} from './stage4.tsx';
+
 declare const React: typeof import('react');
 declare const ReactDOM: { createRoot(el: Element): { render(node: import('react').ReactNode): void } };
-const { useState, useEffect, useMemo, useRef, useSyncExternalStore, createContext, useContext } = React;
-type Node = import('react').ReactNode;
-
-// ───────────────────────────── hooks & shared state ─────────────────────────────
-
-function useData() {
-  useSyncExternalStore((cb) => store.subscribe(cb), () => store.getVersion());
-}
-function useNow() {
-  const [now, setNow] = useState(Date.now());
-  useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 30_000);
-    return () => clearInterval(t);
-  }, []);
-  return now;
-}
-
-type ToastFn = (msg: string, undo?: () => void) => void;
-const ToastCtx = createContext<ToastFn>(() => undefined);
-const useToast = () => useContext(ToastCtx);
-
-type Route = { type: 'goal' | 'habit' | 'task'; id: string } | null;
-const NavCtx = createContext<{ open: (r: Route) => void; capture: () => void }>({ open: () => undefined, capture: () => undefined });
-const useNav = () => useContext(NavCtx);
-
-// ───────────────────────────── primitives ─────────────────────────────
-
-function Btn({ children, onClick, kind = 'primary', small, disabled, full }: { children: Node; onClick: () => void; kind?: 'primary' | 'secondary' | 'ghost' | 'danger'; small?: boolean; disabled?: boolean; full?: boolean }) {
-  return (
-    <button type="button" className={`btn btn-${kind}${small ? ' btn-sm' : ''}${full ? ' btn-full' : ''}`} onClick={onClick} disabled={disabled}>
-      {children}
-    </button>
-  );
-}
-function IconBtn({ label, onClick, children }: { label: string; onClick: () => void; children: Node }) {
-  return (
-    <button type="button" className="icon-btn" aria-label={label} title={label} onClick={onClick}>
-      {children}
-    </button>
-  );
-}
-function Check({ checked, onChange, label, square, partial }: { checked: boolean; onChange: () => void; label: string; square?: boolean; partial?: boolean }) {
-  return (
-    <button type="button" role="checkbox" aria-checked={partial ? 'mixed' : checked} aria-label={label} className={`check${square ? ' check-sq' : ''}${checked ? ' on' : ''}${partial ? ' part' : ''}`} onClick={(e) => { e.stopPropagation(); onChange(); }}>
-      {checked ? <svg viewBox="0 0 16 16" width="12" height="12"><path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" /></svg> : null}
-    </button>
-  );
-}
-function Seg<T extends string>({ value, onChange, options }: { value: T; onChange: (v: T) => void; options: { value: T; label: string }[] }) {
-  return (
-    <div className="seg" role="tablist">
-      {options.map((o) => (
-        <button key={o.value} type="button" role="tab" aria-selected={o.value === value} className={o.value === value ? 'on' : ''} onClick={() => onChange(o.value)}>
-          {o.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-function Chips<T extends string | number>({ value, onChange, options }: { value: T | T[] | null; onChange: (v: T) => void; options: { value: T; label: string }[] }) {
-  const sel = (v: T) => (Array.isArray(value) ? value.includes(v) : value === v);
-  return (
-    <div className="chips">
-      {options.map((o) => (
-        <button key={String(o.value)} type="button" aria-pressed={sel(o.value)} className={`chip${sel(o.value) ? ' on' : ''}`} onClick={() => onChange(o.value)}>
-          {o.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-function Field({ label, children, hint, error }: { label: string; children: Node; hint?: string; error?: string | null }) {
-  return (
-    <label className="field">
-      <span className="field-label">{label}</span>
-      {children}
-      {error ? <span className="field-error">{error}</span> : hint ? <span className="field-hint">{hint}</span> : null}
-    </label>
-  );
-}
-function Section({ title, action, onAction, children, hint }: { title: string; action?: string; onAction?: () => void; children: Node; hint?: string }) {
-  return (
-    <section className="section">
-      <div className="section-head">
-        <h2>{title}</h2>
-        {action && onAction ? <button type="button" className="link-btn" onClick={onAction}>{action}</button> : null}
-      </div>
-      {hint ? <p className="muted small">{hint}</p> : null}
-      {children}
-    </section>
-  );
-}
-function Row({ title, sub, lead, trail, onClick, muted }: { title: Node; sub?: Node; lead?: Node; trail?: Node; onClick?: () => void; muted?: boolean }) {
-  const inner = (
-    <>
-      {lead}
-      <div className="row-main">
-        <div className={`row-title${muted ? ' done' : ''}`}>{title}</div>
-        {sub ? <div className="row-sub">{sub}</div> : null}
-      </div>
-      {trail}
-      {onClick ? <span className="chev" aria-hidden="true">›</span> : null}
-    </>
-  );
-  return onClick ? (
-    <div className="row row-btn" role="button" tabIndex={0} onClick={onClick} onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onClick()}>{inner}</div>
-  ) : (
-    <div className="row">{inner}</div>
-  );
-}
-function Empty({ title, body, action, onAction }: { title: string; body: string; action?: string; onAction?: () => void }) {
-  return (
-    <div className="empty">
-      <div className="empty-title">{title}</div>
-      <p className="muted">{body}</p>
-      {action && onAction ? <Btn kind="secondary" small onClick={onAction}>{action}</Btn> : null}
-    </div>
-  );
-}
-function Bar({ value }: { value: number | null }) {
-  return (
-    <div className="bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round((value ?? 0) * 100)}>
-      <div style={{ width: `${Math.max(0, Math.min(1, value ?? 0)) * 100}%` }} />
-    </div>
-  );
-}
-function Sheet({ title, onClose, children, footer }: { title: string; onClose: () => void; children: Node; footer?: Node }) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
-  return (
-    <div className="overlay" onClick={onClose}>
-      <div className="sheet" role="dialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()}>
-        <div className="sheet-head">
-          <h3>{title}</h3>
-          <IconBtn label="Close" onClick={onClose}>✕</IconBtn>
-        </div>
-        <div className="sheet-body">{children}</div>
-        {footer ? <div className="sheet-foot">{footer}</div> : null}
-      </div>
-    </div>
-  );
-}
-function ConfirmButton({ label, confirmLabel, onConfirm }: { label: string; confirmLabel: string; onConfirm: () => void }) {
-  const [armed, setArmed] = useState(false);
-  return armed ? (
-    <div className="confirm">
-      <span className="muted small">Are you sure?</span>
-      <Btn kind="danger" small onClick={onConfirm}>{confirmLabel}</Btn>
-      <Btn kind="ghost" small onClick={() => setArmed(false)}>Cancel</Btn>
-    </div>
-  ) : (
-    <Btn kind="danger" small onClick={() => setArmed(true)}>{label}</Btn>
-  );
-}
-function Badge({ children, tone = 'neutral' }: { children: Node; tone?: 'neutral' | 'accent' | 'warn' | 'good' | 'bad' }) {
-  return <span className={`badge badge-${tone}`}>{children}</span>;
-}
-function Stepper({ value, onChange, min, max, step = 5, fmt }: { value: number; onChange: (v: number) => void; min: number; max: number; step?: number; fmt?: (v: number) => string }) {
-  return (
-    <div className="stepper">
-      <button type="button" aria-label="Decrease" disabled={value <= min} onClick={() => onChange(Math.max(min, value - step))}>−</button>
-      <span className="num">{fmt ? fmt(value) : value}</span>
-      <button type="button" aria-label="Increase" disabled={value >= max} onClick={() => onChange(Math.min(max, value + step))}>+</button>
-    </div>
-  );
-}
-const mins = (v: number) => (v >= 60 ? `${Math.floor(v / 60)}h${v % 60 ? ` ${v % 60}m` : ''}` : `${v} min`);
-const hhmm = (m: number) => `${String(Math.floor(m / 60) % 24).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
-
-function DueBadge({ date, today }: { date: string; today: string }) {
-  if (date < today) return <Badge tone="bad">Overdue</Badge>;
-  if (date === today) return <Badge tone="warn">Today</Badge>;
-  if (date === addDays(today, 1)) return <Badge tone="accent">Tomorrow</Badge>;
-  return <Badge>{dateLabel(date)}</Badge>;
-}
+const { useState, useEffect, useMemo, useRef } = React;
 
 // ───────────────────────────── Home ─────────────────────────────
 
@@ -277,7 +107,7 @@ function Home() {
           <p>Add your goals, habits, commitments and tasks. ASCEND plans a realistic day around them — with breaks and free time protected — and adjusts when things change.</p>
           <div className="btn-row">
             <Btn onClick={nav.capture}>Capture your first task</Btn>
-            <Btn kind="secondary" onClick={() => { store.save(...exampleRecords(today)); toast('Example week loaded. Clear it any time from Profile.'); }}>Try an example week</Btn>
+            <Btn kind="secondary" onClick={() => { const ex = exampleRecords(today); store.save(...ex, ...stage4Examples(today, ex.filter((r) => r.kind === 'task').map((r) => r.id))); toast('Example week loaded. Clear it any time from Profile.'); }}>Try an example week</Btn>
           </div>
         </div>
       ) : null}
@@ -294,14 +124,16 @@ function Home() {
             <Stat value={String(doneToday)} label="Tasks done" />
           </div>
 
+          {getTimer() ? <div className="notice">A focus session is running. <button type="button" className="link-btn" onClick={() => nav.go('planner', 'focus')}>Open timer</button></div> : null}
           <div className="card">
             <div className="eyebrow">{current ? 'Now' : 'Next'}</div>
             {focus ? (
               <>
                 <div className="focus-title">{focus.title}</div>
                 <p className="muted small">{clock(focus.start)}–{clock(focus.end)} · {focus.reason}</p>
-                <div className="btn-row">
+                <div className="btn-row wrap">
                   <Btn small onClick={() => complete(focus)}>Mark done</Btn>
+                  {current && focus.type === 'task' && !getTimer() ? <Btn small kind="secondary" onClick={() => { startFocus('focus', minutesBetween(Date.now(), focus.end), focus.taskId, focus); nav.go('planner', 'focus'); }}>Start focus</Btn> : null}
                   <Btn small kind="secondary" onClick={() => setSelected(focus)}>Options</Btn>
                 </div>
               </>
@@ -467,7 +299,7 @@ function CaptureSheet({ onClose }: { onClose: () => void }) {
     } else if (eff === 'goal') {
       store.save({ id: uid(), kind: 'goal', title, why: '', status: 'active', rank: nextRank(activeGoals()), deadline: draft.date, mode: 'milestones', target: null, current: null, unit: '', manual: null, createdAt: nowIso() });
     } else {
-      store.save({ id: uid(), kind: 'note', goalId: goal?.id ?? null, type: 'idea', text: title, createdAt: nowIso() });
+      store.save({ id: uid(), kind: 'item', coll: 'ideas', v: { title, status: 'spark' }, createdAt: nowIso(), updatedAt: nowIso() });
     }
     toast(`${eff[0]!.toUpperCase()}${eff.slice(1)} saved: ${title}`);
     setText('');
@@ -487,16 +319,18 @@ function CaptureSheet({ onClose }: { onClose: () => void }) {
 
 function GoalsTab() {
   useData();
-  const [tab, setTab] = useState<'goals' | 'habits'>('goals');
-  const [form, setForm] = useState<'goal' | 'habit' | null>(null);
+  const [tab, setTabState] = useState(lastGoalsSub);
+  const setTab = (t: typeof lastGoalsSub) => { lastGoalsSub = t; setTabState(t); };
+  const [form, setForm] = useState<'goal' | 'habit' | 'project' | null>(null);
   return (
     <div className="screen">
       <header className="head">
         <h1>Goals</h1>
-        <button type="button" className="plus" aria-label={tab === 'goals' ? 'New goal' : 'New habit'} onClick={() => setForm(tab === 'goals' ? 'goal' : 'habit')}>+</button>
+        <button type="button" className="plus" aria-label={tab === 'goals' ? 'New goal' : tab === 'habits' ? 'New habit' : 'New project'} onClick={() => setForm(tab === 'goals' ? 'goal' : tab === 'habits' ? 'habit' : 'project')}>+</button>
       </header>
-      <Seg value={tab} onChange={setTab} options={[{ value: 'goals', label: 'Goals' }, { value: 'habits', label: 'Habits' }]} />
-      {tab === 'goals' ? <GoalList onNew={() => setForm('goal')} /> : <HabitList onNew={() => setForm('habit')} />}
+      <Seg value={tab} onChange={setTab} options={[{ value: 'goals', label: 'Goals' }, { value: 'habits', label: 'Habits' }, { value: 'projects', label: 'Projects' }]} />
+      {tab === 'goals' ? <GoalList onNew={() => setForm('goal')} /> : tab === 'habits' ? <HabitList onNew={() => setForm('habit')} /> : <ProjectList onNew={() => setForm('project')} />}
+      {form === 'project' ? <ProjectForm onClose={() => setForm(null)} /> : null}
       {form === 'goal' ? <GoalForm onClose={() => setForm(null)} /> : null}
       {form === 'habit' ? <HabitForm onClose={() => setForm(null)} /> : null}
     </div>
@@ -734,7 +568,6 @@ function Back({ onBack }: { onBack: () => void }) {
   return <button type="button" className="back" onClick={onBack}>‹ Back</button>;
 }
 
-const DAYS = [1, 2, 3, 4, 5, 6, 0].map((d) => ({ value: d, label: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d]! }));
 
 function HabitForm({ habit, onClose }: { habit?: Habit; onClose: () => void }) {
   const toast = useToast();
@@ -833,20 +666,28 @@ function HabitDetail({ id, onBack }: { id: string; onBack: () => void }) {
 
 // ───────────────────────────── Planner ─────────────────────────────
 
-function PlannerTab() {
+type PlannerSub = 'calendar' | 'tasks' | 'focus' | 'training' | 'social';
+// Sub-tabs are remembered while the page is open, so coming back from a detail screen lands where you were.
+let lastPlannerSub: PlannerSub = 'calendar';
+let lastGoalsSub: 'goals' | 'habits' | 'projects' = 'goals';
+function PlannerTab({ initial }: { initial?: string }) {
   useData();
   const nav = useNav();
-  const [tab, setTab] = useState<'calendar' | 'tasks'>('calendar');
-  const [eventForm, setEventForm] = useState<CalEvent | 'new' | null>(null);
+  const [tab, setTabState] = useState<PlannerSub>((['calendar', 'tasks', 'focus', 'training', 'social'] as const).find((t) => t === initial) ?? lastPlannerSub);
+  const setTab = (t: PlannerSub) => { lastPlannerSub = t; setTabState(t); };
+  useEffect(() => { lastPlannerSub = tab; }, [tab]);
+  const [eventForm, setEventForm] = useState<CalEvent | 'new' | 'social' | null>(null);
   return (
     <div className="screen">
       <header className="head">
         <h1>Planner</h1>
-        <button type="button" className="plus" aria-label={tab === 'calendar' ? 'New event' : 'New task'} onClick={() => (tab === 'calendar' ? setEventForm('new') : nav.open({ type: 'task', id: 'new:' }))}>+</button>
+        {tab === 'calendar' || tab === 'tasks' ? (
+          <button type="button" className="plus" aria-label={tab === 'tasks' ? 'New task' : 'New event'} onClick={() => (tab === 'calendar' ? setEventForm('new') : nav.open({ type: 'task', id: 'new:' }))}>+</button>
+        ) : <span className="plus-spacer" aria-hidden="true" />}
       </header>
-      <Seg value={tab} onChange={setTab} options={[{ value: 'calendar', label: 'Calendar' }, { value: 'tasks', label: 'Tasks' }]} />
-      {tab === 'calendar' ? <CalendarPane onEvent={setEventForm} /> : <TasksPane />}
-      {eventForm ? <EventForm event={eventForm === 'new' ? undefined : eventForm} onClose={() => setEventForm(null)} /> : null}
+      <Seg value={tab} onChange={setTab} options={[{ value: 'calendar', label: 'Calendar' }, { value: 'tasks', label: 'Tasks' }, { value: 'focus', label: 'Focus' }, { value: 'training', label: 'Training' }, { value: 'social', label: 'Social' }]} />
+      {tab === 'calendar' ? <CalendarPane onEvent={setEventForm} /> : tab === 'tasks' ? <TasksPane /> : tab === 'focus' ? <FocusPane /> : tab === 'training' ? <TrainingPane /> : <SocialPane onNewEvent={() => setEventForm('social')} />}
+      {eventForm ? <EventForm event={eventForm === 'new' || eventForm === 'social' ? undefined : eventForm} defaultType={eventForm === 'social' ? 'social' : undefined} onClose={() => setEventForm(null)} /> : null}
     </div>
   );
 }
@@ -900,14 +741,14 @@ function CalendarPane({ onEvent }: { onEvent: (e: CalEvent) => void }) {
   );
 }
 
-function EventForm({ event, onClose }: { event?: CalEvent; onClose: () => void }) {
+function EventForm({ event, onClose, defaultType }: { event?: CalEvent; onClose: () => void; defaultType?: CalEvent['type'] }) {
   const toast = useToast();
   const [title, setTitle] = useState(event?.title ?? '');
   const [date, setDate] = useState(event?.date ?? todayStr());
   const [start, setStart] = useState(hhmm(event?.start ?? 9 * 60));
   const [end, setEnd] = useState(hhmm(event?.end ?? 10 * 60));
   const [repeat, setRepeat] = useState<CalEvent['repeat']>(event?.repeat ?? 'none');
-  const [type, setType] = useState<CalEvent['type']>(event?.type ?? 'event');
+  const [type, setType] = useState<CalEvent['type']>(event?.type ?? defaultType ?? 'event');
   const [locked, setLocked] = useState(event?.locked ?? false);
   const [busy, setBusy] = useState(event?.busy ?? true);
   const [error, setError] = useState<string | null>(null);
@@ -1084,6 +925,7 @@ function InsightsTab() {
               {goals.length > 1 && minutesByGoal(goals[0]!) === 0 && goals.some((g) => minutesByGoal(g) > 0) ? <p className="warn small">Your top priority hasn’t had focused time this week, while others have.</p> : null}
             </Section>
           ) : null}
+          <Stage4Insights />
           {habits.length ? (
             <Section title="Habit consistency" hint="Last 30 days. Consistency matters more than streaks.">
               <div className="group">{habits.map(({ habit, c30 }) => <Row key={habit.id} title={habit.name} trail={<span className="num">{c30.rate === null ? '—' : `${Math.round(c30.rate * 100)}%`}</span>} onClick={() => nav.open({ type: 'habit', id: habit.id })} />)}</div>
@@ -1103,6 +945,7 @@ function ProfileTab() {
   const p = store.prefs();
   const set = (patch: Partial<Prefs>) => store.save({ ...p, ...patch });
   const [studyOn, setStudyOn] = useState(!!p.study);
+  const nav = useNav();
   const ideas = store.all('note').filter((n) => n.type === 'idea');
   useEffect(() => applyTheme(p.theme), [p.theme]);
   const exportData = async () => {
@@ -1116,6 +959,9 @@ function ProfileTab() {
   return (
     <div className="screen">
       <header className="head"><h1>Profile</h1></header>
+      <Section title="Personal development">
+        <div className="group">{COLLS.map((c) => { const n = store.all('item').filter((i) => i.coll === c.key).length; return <Row key={c.key} title={c.title} sub={c.blurb} trail={n ? <span className="muted small num">{n}</span> : undefined} onClick={() => nav.open({ type: 'coll', id: c.key })} />; })}</div>
+      </Section>
       <Section title="You">
         <Field label="Name (for greetings)"><input id="pref-name" className="input" value={p.name} maxLength={80} onChange={(e) => set({ name: e.target.value })} /></Field>
       </Section>
@@ -1144,7 +990,7 @@ function ProfileTab() {
         ) : null}
       </Section>
       {ideas.length ? (
-        <Section title="Ideas">
+        <Section title="Ideas captured earlier" hint="New ideas go to the Idea Incubator.">
           <div className="group">{ideas.map((n) => <Row key={n.id} title={n.text} sub={dateLabel(n.createdAt.slice(0, 10))} trail={<button type="button" className="x" aria-label="Delete idea" onClick={() => store.remove(n.id)}>✕</button>} />)}</div>
         </Section>
       ) : null}
@@ -1180,6 +1026,7 @@ function App() {
   const initialTab = (TABS.find((t) => `#${t.value}` === location.hash)?.value ?? 'home') as Tab;
   const [tab, setTab] = useState<Tab>(initialTab);
   const [route, setRoute] = useState<Route>(null);
+  const [sub, setSub] = useState<{ tab: string; n: number } | null>(null);
   const [capture, setCapture] = useState(false);
   const [toastState, setToastState] = useState<{ id: number; msg: string; undo?: () => void } | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1197,12 +1044,16 @@ function App() {
   const go = (t: Tab) => { setTab(t); setRoute(null); try { history.replaceState(null, '', `#${t}`); } catch { /* sandboxed */ } window.scrollTo(0, 0); };
   const back = () => setRoute(null);
   const content = route?.type === 'goal' ? <GoalDetail id={route.id} onBack={back} />
+    : route?.type === 'project' ? <ProjectDetail id={route.id} onBack={back} />
+    : route?.type === 'workout' ? <WorkoutDetail id={route.id} onBack={back} />
+    : route?.type === 'skill' ? <SkillDetail id={route.id} onBack={back} />
+    : route?.type === 'coll' ? <CollectionScreen key={route.id} id={route.id} onBack={back} />
     : route?.type === 'habit' ? <HabitDetail id={route.id} onBack={back} />
     : route?.type === 'task' ? <TaskDetail key={route.id} id={route.id} onBack={back} />
-    : tab === 'home' ? <Home /> : tab === 'goals' ? <GoalsTab /> : tab === 'planner' ? <PlannerTab /> : tab === 'insights' ? <InsightsTab /> : <ProfileTab />;
+    : tab === 'home' ? <Home /> : tab === 'goals' ? <GoalsTab /> : tab === 'planner' ? <PlannerTab key={sub?.n ?? 0} initial={sub?.tab} /> : tab === 'insights' ? <InsightsTab /> : <ProfileTab />;
   return (
     <ToastCtx.Provider value={toast}>
-      <NavCtx.Provider value={{ open: (r) => { setRoute(r); window.scrollTo(0, 0); }, capture: () => setCapture(true) }}>
+      <NavCtx.Provider value={{ open: (r) => { setRoute(r); window.scrollTo(0, 0); }, capture: () => setCapture(true), go: (t, s) => { setSub(s ? { tab: s, n: Date.now() } : null); go(t as Tab); } }}>
         <div className="app">
           {store.error ? <div className="notice warn">{store.error}</div> : null}
           <main>{content}</main>

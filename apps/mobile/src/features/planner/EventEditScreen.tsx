@@ -22,7 +22,7 @@ const REPEATS = [
 ];
 
 export function EventEditScreen() {
-  const { id, date: dateParam } = useLocalSearchParams<{ id?: string; date?: string }>();
+  const { id, date: dateParam, kind: kindParam } = useLocalSearchParams<{ id?: string; date?: string; kind?: string }>();
   const store = useStore();
   const toast = useToast();
   const ctx = useUserContext();
@@ -35,7 +35,7 @@ export function EventEditScreen() {
   const [start, setStart] = useState(9 * 60);
   const [end, setEnd] = useState(10 * 60);
   const [allDay, setAllDay] = useState(false);
-  const [kind, setKind] = useState<EventKind>('event');
+  const [kind, setKind] = useState<EventKind>(kindParam && kindParam in EVENT_KIND_LABELS ? (kindParam as EventKind) : 'event');
   const [locked, setLocked] = useState(false);
   const [busy, setBusy] = useState(true);
   const [repeat, setRepeat] = useState('');

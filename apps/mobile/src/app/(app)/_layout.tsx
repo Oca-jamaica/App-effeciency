@@ -1,6 +1,7 @@
 import { Stack } from 'expo-router';
 import { View, ActivityIndicator } from 'react-native';
 import { DataProvider } from '@/data/DataProvider';
+import { NotificationSync } from '@/features/notifications/NotificationSync';
 import { useAuth } from '@/services/auth';
 import { fonts, useTheme } from '@/ui';
 
@@ -18,6 +19,7 @@ export default function AppLayout() {
         </View>
       }
     >
+      <NotificationSync />
       <Stack
         screenOptions={{
           headerStyle: { backgroundColor: colors.background },
@@ -41,6 +43,15 @@ export default function AppLayout() {
         <Stack.Screen name="settings/hours" options={{ title: 'Preferred hours' }} />
         <Stack.Screen name="settings/categories" options={{ title: 'Categories' }} />
         <Stack.Screen name="settings/sync" options={{ title: 'Sync' }} />
+        <Stack.Screen name="settings/notifications" options={{ title: 'Reminders' }} />
+        <Stack.Screen name="project/edit" options={{ presentation: 'modal', title: 'Project' }} />
+        <Stack.Screen name="project/[id]" options={{ title: '' }} />
+        <Stack.Screen name="video/[id]" options={{ title: 'Timelapse' }} />
+        <Stack.Screen name="workout/[id]" options={{ title: 'Workout' }} />
+        <Stack.Screen name="exercise/[id]" options={{ title: 'Exercise' }} />
+        <Stack.Screen name="skill/[id]" options={{ title: 'Skill' }} />
+        <Stack.Screen name="c/[key]/index" options={{ title: '' }} />
+        <Stack.Screen name="c/[key]/edit" options={{ presentation: 'modal', title: '' }} />
       </Stack>
     </DataProvider>
   );

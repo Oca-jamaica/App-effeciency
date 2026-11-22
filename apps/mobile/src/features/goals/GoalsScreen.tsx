@@ -13,23 +13,24 @@ import {
   SegmentedControl, Text, gutter, radius, space, useTheme, useToast,
 } from '@/ui';
 import { computeProgress, listGoals, moveGoal } from './repo';
+import { ProjectList } from '@/features/projects/ProjectScreens';
 
-type Tab = 'goals' | 'habits';
+type Tab = 'goals' | 'habits' | 'projects';
 const ROW_HEIGHT = 92;
 
 export function GoalsScreen() {
   const params = useLocalSearchParams<{ tab?: string }>();
-  const [tab, setTab] = useState<Tab>(params.tab === 'habits' ? 'habits' : 'goals');
+  const [tab, setTab] = useState<Tab>(params.tab === 'habits' ? 'habits' : params.tab === 'projects' ? 'projects' : 'goals');
   return (
     <Screen
       title="Goals"
       actions={
         <IconButton
           icon={Plus}
-          label={tab === 'goals' ? 'New goal' : 'New habit'}
+          label={tab === 'goals' ? 'New goal' : tab === 'habits' ? 'New habit' : 'New project'}
           tone="primary"
           filled
-          onPress={() => router.push(tab === 'goals' ? '/(app)/goal/edit' : '/(app)/habit/edit')}
+          onPress={() => router.push(tab === 'goals' ? '/(app)/goal/edit' : tab === 'habits' ? '/(app)/habit/edit' : '/(app)/project/edit')}
         />
       }
       toolbar={
@@ -38,6 +39,7 @@ export function GoalsScreen() {
             segments={[
               { value: 'goals', label: 'Goals' },
               { value: 'habits', label: 'Habits' },
+              { value: 'projects', label: 'Projects' },
             ]}
             value={tab}
             onChange={setTab}
@@ -45,7 +47,7 @@ export function GoalsScreen() {
         </View>
       }
     >
-      {tab === 'goals' ? <GoalList /> : <HabitList />}
+      {tab === 'goals' ? <GoalList /> : tab === 'habits' ? <HabitList /> : <ProjectList />}
     </Screen>
   );
 }

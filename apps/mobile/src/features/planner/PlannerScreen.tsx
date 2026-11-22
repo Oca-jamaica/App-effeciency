@@ -1,7 +1,7 @@
 import { addDays, addMonths, daysInMonth, diffDays, parseTime, startOfMonth, startOfWeek, weekday } from '@ascend/domain';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { CalendarPlus, CheckSquare, ChevronLeft, ChevronRight, Plus } from 'lucide-react-native';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useLive, useStore } from '@/data/DataProvider';
 import type { ScheduleBlock, Task } from '@/data/types';
@@ -12,36 +12,49 @@ import {
   formatDateLabel, gutter, radius, space, useTheme, useToast,
 } from '@/ui';
 import { BlockSheet } from './BlockSheet';
+import { FocusPane } from '@/features/focus/FocusScreen';
+import { TrainingPane } from '@/features/training/TrainingScreens';
+import { SocialPane } from '@/features/social/SocialPane';
 import { DayGrid } from './DayGrid';
 import { occurrencesInRange } from './events';
 import { moveBlock } from './schedule';
 import { clock } from './Timeline';
 import { useDayPlan } from './useDayPlan';
 
-type Tab = 'calendar' | 'tasks';
+type Tab = 'calendar' | 'tasks' | 'focus' | 'training' | 'social';
 type View3 = 'day' | 'week' | 'month';
 
+const TABS: { value: Tab; label: string }[] = [
+  { value: 'calendar', label: 'Calendar' },
+  { value: 'tasks', label: 'Tasks' },
+  { value: 'focus', label: 'Focus' },
+  { value: 'training', label: 'Training' },
+  { value: 'social', label: 'Social' },
+];
+
 export function PlannerScreen() {
-  const [tab, setTab] = useState<Tab>('calendar');
+  const params = useLocalSearchParams<{ tab?: string }>();
+  const [tab, setTab] = useState<Tab>((TABS.find((t) => t.value === params.tab)?.value ?? 'calendar') as Tab);
+  useEffect(() => {
+    const t = TABS.find((x) => x.value === params.tab);
+    if (t) setTab(t.value);
+  }, [params.tab]);
+  const action =
+    tab === 'calendar' ? { icon: CalendarPlus, label: 'New event', go: () => router.push('/(app)/event/edit') }
+    : tab === 'tasks' ? { icon: Plus, label: 'New task', go: () => router.push('/(app)/task/edit') }
+    : tab === 'social' ? { icon: Plus, label: 'New plan', go: () => router.push({ pathname: '/(app)/event/edit', params: { kind: 'social' } }) }
+    : null;
   return (
     <Screen
       title="Planner"
-      actions={
-        <IconButton
-          icon={tab === 'calendar' ? CalendarPlus : Plus}
-          label={tab === 'calendar' ? 'New event' : 'New task'}
-          tone="primary"
-          filled
-          onPress={() => router.push(tab === 'calendar' ? '/(app)/event/edit' : '/(app)/task/edit')}
-        />
-      }
+      actions={action ? <IconButton icon={action.icon} label={action.label} tone="primary" filled onPress={action.go} /> : undefined}
       toolbar={
-        <View style={{ paddingHorizontal: gutter, paddingBottom: space.md }}>
-          <SegmentedControl segments={[{ value: 'calendar', label: 'Calendar' }, { value: 'tasks', label: 'Tasks' }]} value={tab} onChange={setTab} />
+        <View style={{ paddingBottom: space.md }}>
+          <SegmentedControl scrollable segments={TABS} value={tab} onChange={setTab} />
         </View>
       }
     >
-      {tab === 'calendar' ? <CalendarPane /> : <TasksPane />}
+      {tab === 'calendar' ? <CalendarPane /> : tab === 'tasks' ? <TasksPane /> : tab === 'focus' ? <FocusPane /> : tab === 'training' ? <TrainingPane /> : <SocialPane />}
     </Screen>
   );
 }

@@ -250,7 +250,14 @@ export class Store {
     return r?.value ?? null;
   }
 
+  /** Device-only settings. Listeners subscribed to '_kv' hear about changes. */
   async setSetting(key: string, value: string): Promise<void> {
     await this.db.run('INSERT OR REPLACE INTO _kv (key, value) VALUES (?, ?)', [key, value]);
+    this.notify(new Set(['_kv']));
+  }
+
+  async removeSetting(key: string): Promise<void> {
+    await this.db.run('DELETE FROM _kv WHERE key = ?', [key]);
+    this.notify(new Set(['_kv']));
   }
 }

@@ -70,9 +70,13 @@ export function buildInput(date: string, now: number): PlanInput {
   const milestones = new Map(store.all('milestone').map((m) => [m.id, m]));
   const parents = new Set<string>();
   const doneMinutes = new Map<string, number>();
+  // Time recorded against a task: focus sessions, plus done blocks that no session already covers.
+  const sessions = store.all('focus').filter((s) => s.status === 'completed' && s.taskId);
+  const covered = new Set(sessions.map((s) => s.blockId).filter(Boolean));
   for (const b of store.all('block')) {
-    if (b.taskId && b.status === 'done') doneMinutes.set(b.taskId, (doneMinutes.get(b.taskId) ?? 0) + Math.round((b.end - b.start) / 60_000));
+    if (b.taskId && b.status === 'done' && !covered.has(b.id)) doneMinutes.set(b.taskId, (doneMinutes.get(b.taskId) ?? 0) + Math.round((b.end - b.start) / 60_000));
   }
+  for (const s of sessions) doneMinutes.set(s.taskId!, (doneMinutes.get(s.taskId!) ?? 0) + Math.round(s.seconds / 60));
   const tasks = store
     .all('task')
     .filter((t) => (t.status === 'planned' || t.status === 'in_progress' || (t.status === 'inbox' && t.due)) && !parents.has(t.id))

@@ -47,6 +47,7 @@ p { margin: 0; }
 .head .muted { margin-top: 2px; }
 .plus { width: 40px; height: 40px; border-radius: 12px; border: 0; background: var(--surface-2); font-size: 22px; line-height: 1; cursor: pointer; flex: none; }
 .plus:hover { background: var(--pressed); }
+.plus-spacer { width: 40px; height: 40px; flex: none; }
 .btn { border: 0; border-radius: 12px; min-height: 46px; padding: 0 16px; font-weight: 500; cursor: pointer; }
 .btn-sm { min-height: 36px; border-radius: 9px; padding: 0 12px; font-size: 13px; }
 .btn-full { width: 100%; }
@@ -72,6 +73,8 @@ p { margin: 0; }
 .focus-title { font-size: 17px; font-weight: 600; }
 .strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
 .card .strip { grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); }
+.strip.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.timer { font-size: 44px; line-height: 52px; font-weight: 600; letter-spacing: -1px; }
 .stat .num { font-size: 20px; line-height: 24px; letter-spacing: -.3px; }
 .section { display: flex; flex-direction: column; gap: 10px; }
 .section-head { display: flex; align-items: center; justify-content: space-between; }

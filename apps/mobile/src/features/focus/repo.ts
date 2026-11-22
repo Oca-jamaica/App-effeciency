@@ -24,7 +24,7 @@ export async function getTimer(store: Store): Promise<TimerState | null> {
     const s = await store.get<FocusSession>('focus_sessions', t.sessionId);
     // The session may have been finished or deleted on another device.
     if (!s || s.deleted_at || s.status !== 'running') {
-      await store.db.run('DELETE FROM _kv WHERE key = ?', [TIMER_KEY]);
+      await store.removeSetting(TIMER_KEY);
       return null;
     }
     return t;
@@ -35,7 +35,7 @@ export async function getTimer(store: Store): Promise<TimerState | null> {
 
 async function saveTimer(store: Store, t: TimerState | null): Promise<void> {
   if (t) await store.setSetting(TIMER_KEY, JSON.stringify(t));
-  else await store.db.run('DELETE FROM _kv WHERE key = ?', [TIMER_KEY]);
+  else await store.removeSetting(TIMER_KEY);
 }
 
 export async function startFocus(store: Store, kind: FocusKind, plannedMinutes: number | null, links: FocusLinks = {}): Promise<TimerState> {
@@ -90,11 +90,21 @@ export async function resumeFocus(store: Store): Promise<TimerState | null> {
   return next;
 }
 
-/** Stops the running session and records it. Links to a planned block count that block as done. */
+/** Under a minute of focus isn't recorded: finishing that early is treated as discarding. */
+export const MIN_RECORDED_SECONDS = 60;
+
+/**
+ * Stops the running session and records it. Links to a planned block count that block as done.
+ * Returns null (and records nothing) when the session was shorter than a minute.
+ */
 export async function stopFocus(store: Store, outcome: { quality?: number | null; notes?: string | null } = {}): Promise<FocusSession | null> {
   const t = await getTimer(store);
   if (!t) return null;
   const done = stopTimer(t, store.now().getTime());
+  if (done.durationSeconds < MIN_RECORDED_SECONDS) {
+    await discardFocus(store);
+    return null;
+  }
   const session = await store.write(async (tx) => {
     const s = await tx.update<FocusSession>('focus_sessions', t.sessionId, {
       ended_at: new Date(done.endedAt).toISOString(),

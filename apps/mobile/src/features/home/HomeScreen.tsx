@@ -11,6 +11,7 @@ import { BlockSheet } from '@/features/planner/BlockSheet';
 import { buildTimeline, clock, TimelineRow } from '@/features/planner/Timeline';
 import { useDayPlan } from '@/features/planner/useDayPlan';
 import { setBlockStatus } from '@/features/planner/schedule';
+import { startFocus } from '@/features/focus/repo';
 import { useToday, useUserContext } from '@/hooks/useUser';
 import { Badge, Button, Card, Checkbox, EmptyState, Group, IconButton, ListRow, Row, Screen, Section, Text, Icon, space, useToast } from '@/ui';
 
@@ -126,6 +127,20 @@ export function HomeScreen() {
             </Text>
             <Row>
               <Button label="Mark done" size="sm" onPress={() => toggleBlockDone((current ?? next)!)} />
+              {(current ?? next)!.kind === 'task' ? (
+                <Button
+                  label="Start focus"
+                  size="sm"
+                  variant="secondary"
+                  onPress={() => {
+                    const b = (current ?? next)!;
+                    const planned = Math.max(5, Math.round((Date.parse(b.ends_at) - Date.parse(b.starts_at)) / 60_000));
+                    startFocus(store, 'focus', planned, { taskId: b.task_id, scheduleBlockId: b.id })
+                      .then(() => router.push({ pathname: '/(tabs)/planner', params: { tab: 'focus' } }))
+                      .catch((e) => toast.show(e instanceof Error ? e.message : String(e), { kind: 'error' }));
+                  }}
+                />
+              ) : null}
               <Button label="Options" size="sm" variant="secondary" onPress={() => setSelected((current ?? next)!)} />
             </Row>
           </View>

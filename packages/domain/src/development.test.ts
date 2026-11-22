@@ -63,6 +63,9 @@ test('project progress prefers milestones, then tasks', () => {
   assert.equal(t.ratio, 0.5);
   assert.equal(t.label, '1 of 2 tasks');
   assert.equal(projectProgress({ milestones: [], tasks: [], stages: [] }).ratio, null);
+  const st = projectProgress({ milestones: [], tasks: [], stages: [{ status: 'done' }, { status: 'open' }, { status: 'open' }, { status: 'open' }] });
+  assert.equal(st.ratio, 0.25, 'stages carry progress when there are no milestones or tasks');
+  assert.equal(st.label, '1 of 4 stages');
 });
 
 test('learning progress and sleep', () => {

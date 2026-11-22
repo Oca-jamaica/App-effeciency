@@ -13,8 +13,8 @@ proposes changes for the user to approve.
 | 1 | Product, architecture, database design, scheduler spec | ✅ Done — see `docs/` |
 | 2 | Foundation: monorepo, design system, navigation, auth, migrations, offline data & sync | ✅ Done |
 | 3 | Core: Home, Goals, Habits, Tasks, Calendar, automatic scheduler, quick capture | ✅ Done — acceptance criteria 1–11 covered by tests |
-| 4 | Personal development: focus timer, study timelapses, projects, training, journals, vault | Next |
-| 5 | Insights: weekly reports, Life Audit, achievements, balance, Life Graph, skill trees | Planned |
+| 4 | Personal development: focus timer, study timelapses, projects, training, social, journals, vault, reminders | ✅ Done — acceptance criteria 12, 13, 14, 16 covered by tests |
+| 5 | Insights: weekly reports, Life Audit, achievements, balance, Life Graph, skill trees | Next |
 | 6 | ASCEND AI (server-side) | Planned |
 | 7–8 | Hardening, store builds, release | Planned |
 
@@ -28,8 +28,11 @@ apps/mobile/          Expo SDK 58 app (React Native 0.88, TypeScript, Expo Route
   src/app/            Routes: (auth) sign-in flow, (app)/(tabs) Home · Goals · Planner · Insights · Profile
   src/ui/             Design system: tokens, theme, primitives
   src/data/           On-device SQLite store, outbox, sync engine
-  src/features/       Goals, habits, tasks, planner/scheduling, capture, insights, settings
-packages/domain/      Pure TypeScript shared by app and server: scheduler, habits, recurrence, capture parser
+  src/features/       Goals, habits, tasks, planner/scheduling, capture, focus & timelapses, projects,
+                      training, social, collections (journals, vault…), notifications, insights, settings
+packages/domain/      Pure TypeScript shared by app and server: scheduler, habits, recurrence, capture parser,
+                      focus timer, personal records, birthdays, project/learning/sleep progress
+apps/web-preview/     Single-file browser preview built from the same domain package
 supabase/migrations/  Postgres schema with Row Level Security and the sync API
 supabase/functions/   Edge Functions (delete-account)
 supabase/tests/       Database, security and two-device sync tests
@@ -54,6 +57,7 @@ You need Node 22, a free [Supabase](https://supabase.com) project, and the **Exp
    ```bash
    supabase db push
    ```
+   This applies every migration, including the private `study-videos` storage bucket.
    ```bash
    supabase functions deploy delete-account
    ```
@@ -86,6 +90,31 @@ You need Node 22, a free [Supabase](https://supabase.com) project, and the **Exp
 8. **Offline & sync:** turn on airplane mode, make changes, turn it off — they sync. Sign in on a second
    device to see the same data. Profile → Sync shows status and any merge notices.
 9. **Data:** Profile → Export my data shares a full JSON copy. Delete account is permanent.
+
+## Testing on your phone (Stage 4)
+
+1. **Focus:** Planner → Focus. Pick a type and length, link a task, Start. Close the app and reopen it — the
+   timer is still running. Pause, resume, then Finish and rate your focus. The time counts towards the task,
+   so the planner schedules only what's left. From Home, **Start focus** on the current block does the same
+   and marks the block done when you finish.
+2. **Timelapses:** after a session, choose to attach a timelapse, or use Planner → Focus → Upload. Pick an
+   MP4/MOV video; watch the progress, cancel or retry. Videos are stored privately in your account (only you
+   can play them, through links that expire after an hour) and are never shared.
+   On Supabase's Free plan a single upload is limited to 50 MB; the Pro plan allows larger files (the app
+   accepts up to 500 MB).
+3. **Projects & missions:** Goals → Projects → **+**. A mission needs an objective and a deadline. Add stages,
+   milestones and tasks; tasks are scheduled like any other. Completing asks for a short summary.
+4. **Training:** Planner → Training → Workouts. Add the starter exercises or your own, start a workout and log
+   sets — a new personal record is announced. Sport & skills: create skills, rate them 0–10, log sessions.
+   For training to appear in your plan, create it as a habit or a recurring *training* event.
+5. **Social:** Planner → Social shows plans with people, upcoming birthdays and experiences.
+6. **Journals and more:** Profile → Daily Journal, Decision Journal, Reading & Learning, Knowledge Vault,
+   Idea Incubator, Workspace, People & birthdays, Experiences, Sleep & Recovery. All searchable.
+7. **Reminders:** Profile → Reminders. Turn them on (the phone asks for permission), set quiet hours and a
+   daily limit. Habit reminder times, reminders from quick capture (e.g. `remind me to call Sam fri 6pm`) and
+   the focus timer then notify you, even with the app closed.
+
+A browser preview of all of this (without the server parts) is in `apps/web-preview`.
 
 ## Running the tests
 

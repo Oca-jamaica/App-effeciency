@@ -26,7 +26,13 @@ export const schedulingPrefsInput = z
     buffer_minutes: z.number().int().min(0).max(60),
     min_free_minutes_per_day: z.number().int().min(0).max(720),
     schedule_inbox_with_deadline: z.boolean(),
+    quiet_hours_start: hhmm.nullable(),
+    quiet_hours_end: hhmm.nullable(),
+    max_notifications_per_day: z.number().int().min(0).max(50),
+    notify_block_start: z.boolean(),
   })
+  .refine((p) => (p.quiet_hours_start === null) === (p.quiet_hours_end === null), { message: 'Set both ends of quiet hours', path: ['quiet_hours_end'] })
+  .refine((p) => p.quiet_hours_start === null || p.quiet_hours_start !== p.quiet_hours_end, { message: 'Quiet hours must start and end at different times', path: ['quiet_hours_end'] })
   .refine((p) => p.day_end > p.day_start, { message: 'Your day must end after it starts', path: ['day_end'] });
 
 export async function updatePreferences(store: Store, patch: Partial<Preferences>): Promise<void> {

@@ -215,7 +215,7 @@ const REPEATS = [
 ];
 
 export function TaskEditScreen() {
-  const params = useLocalSearchParams<{ id?: string; goal_id?: string; milestone_id?: string; title?: string }>();
+  const params = useLocalSearchParams<{ id?: string; goal_id?: string; milestone_id?: string; title?: string; project_id?: string }>();
   const id = params.id;
   const store = useStore();
   const toast = useToast();
@@ -239,6 +239,7 @@ export function TaskEditScreen() {
   const [milestoneId, setMilestoneId] = useState<string | null>(params.milestone_id ?? null);
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [repeat, setRepeat] = useState('');
+  const [projectId, setProjectId] = useState<string | null>(params.project_id ?? null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const milestones = useMilestoneOptions(goalId);
@@ -262,6 +263,7 @@ export function TaskEditScreen() {
       setMilestoneId(t.milestone_id);
       setCategoryId(t.category_id);
       setRepeat(t.recurrence_rule ?? '');
+      setProjectId(t.project_id);
       setLoaded(true);
     });
   }, [id, store]);
@@ -284,6 +286,7 @@ export function TaskEditScreen() {
         milestone_id: milestoneId,
         category_id: categoryId,
         recurrence_rule: repeat || null,
+        project_id: projectId,
       };
       if (id) await updateTask(store, id, input);
       else await createTask(store, input);

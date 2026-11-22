@@ -130,6 +130,8 @@ Acceptance criteria covered: **12, 13, 14, 16**.
 - Skill Trees.
 - Life Graph Connections.
 - Purge job for tombstones.
+- Carried over from Stage 4: revocable timelapse share links, birthday notifications, read-only
+  device calendar import.
 
 Acceptance criterion covered: **15**.
 
@@ -243,3 +245,54 @@ Known limitations (to address in later stages):
 - The `delete-account` Edge Function is written but was not executed in this environment (no Deno or
   Supabase stack available); test it against your project before relying on it.
 - Device calendar import (read-only) is planned with Stage 4.
+
+### Stage 4 (built)
+
+Delivered:
+
+- **Focus** (`features/focus`): timer with pause/resume that survives the app being closed (state in the
+  device database), four session types, links to a task, goal, project, learning item or plan block,
+  manual logging, history, and totals. Recorded focus counts towards a task's estimate in the scheduler,
+  and finishing a session started from a plan block completes that block. Sessions under a minute are
+  not recorded.
+- **Study timelapses** (`features/focus/videos.ts`, `videoStorage.ts`, `VideoScreens.tsx`): MP4/MOV
+  validation (type and size), private bucket `study-videos` with per-user folder policies, upload through
+  a short-lived signed URL as a background transfer with progress, cancel and retry, playback through
+  one-hour signed URLs, and deletion of both file and record.
+- **Projects and missions** (`features/projects`): stages, project milestones, tasks, notes, focus time,
+  status, and a completion summary. A mission requires an objective and a deadline.
+- **Training** (`features/training`): exercises (with a starter set), workout templates, live workout
+  logging with personal-record detection (heaviest, estimated one-rep max, reps), sports, training
+  sessions linked to skills, and skill levels with history.
+- **Social** (`features/social`): social plans from the calendar, birthdays from People, experiences.
+- **Collections** (`features/collections`): Daily Journal (one entry per day), Decision Journal (with
+  review dates), Reading & Learning (progress), Knowledge Vault, Idea Incubator, Workspace notes, People,
+  Experiences and Sleep & Recovery (14-day summary), all from one definition-driven list/editor with search
+  and filters.
+- **Local notifications** (`features/notifications`): a pure planner chooses what to schedule for the next
+  seven days — habit reminder times on due days (not once done), reminders you set, the focus timer's end,
+  and optional nudges before planned blocks — respecting quiet hours and a daily cap (reminders you set
+  always arrive). The device schedule is replaced whenever the plan changes; tapping a notification opens
+  the right screen. Off until the user turns it on.
+- **Database** (`supabase/migrations/20261122000003_personal_development.sql`): 25 new tables, all with
+  RLS and ownership-enforcing foreign keys, plus the storage bucket and policies; `supabase/tests/stage4.test.ts`
+  checks isolation on every new table, storage privacy, skill-tree cycles, and that uniqueness errors never
+  reveal another user's data.
+
+Deviations from the plan, and why:
+
+- **Training reaches the scheduler through habits and training events**, not through workout templates.
+  A flexible routine ("Gym, Mon/Wed/Fri, 60 min") is a habit the scheduler already places; a fixed session
+  is a recurring *training* event it plans around. Workout templates are what you start a workout from.
+- **Timelapse share links are not built yet.** Videos are private to their owner, which meets "never
+  publish or share automatically"; user-controlled, revocable sharing is planned with Stage 5's reports.
+- **Birthday reminders are shown, not notified.** Upcoming birthdays appear in Planner → Social; they will
+  join the notification planner with the Stage 5 weekly reset.
+
+Known limitations:
+
+- Still not run on a physical device or simulator; notifications, video picking/upload and playback need a
+  device to verify.
+- Supabase's Free plan caps a single upload at 50 MB (Pro: configurable).
+- Device calendar import (read-only) is not done yet; moved to Stage 5.
+

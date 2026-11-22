@@ -67,6 +67,11 @@ test('AC13: study sessions link to tasks and goals, by timer or logged afterward
   await startFocus(store, 'focus', null);
   await discardFocus(store);
   assert.equal((await store.list<FocusSession>('focus_sessions')).length, 1);
+  // Finishing within a minute (a mis-tap) records nothing and leaves any linked plan block alone.
+  await startFocus(store, 'focus', 25, { taskId: task.id });
+  assert.equal(await stopFocus(store), null);
+  assert.equal((await store.list<FocusSession>('focus_sessions')).length, 1);
+  assert.equal(await getTimer(store), null);
 });
 
 test('the scheduler counts recorded focus time against a task’s estimate', async () => {
