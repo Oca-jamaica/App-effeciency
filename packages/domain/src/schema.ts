@@ -111,6 +111,8 @@ export const SYNCED_TABLES: readonly TableDef[] = [
   ]),
   table('milestones', [
     'goal_id uuid?',
+    'project_id uuid?',
+    'stage_id uuid?',
     'title text',
     'description text?',
     'deadline date?',
@@ -135,6 +137,7 @@ export const SYNCED_TABLES: readonly TableDef[] = [
     'folder text?',
     'pinned bool',
     'tags text[]',
+    'project_id uuid?',
   ]),
   table('knowledge_items', [
     'kind text',
@@ -147,6 +150,8 @@ export const SYNCED_TABLES: readonly TableDef[] = [
     'goal_id uuid?',
     'milestone_id uuid?',
     'is_favorite bool',
+    'project_id uuid?',
+    'skill_id uuid?',
   ]),
   table('habits', [
     'name text',
@@ -197,6 +202,7 @@ export const SYNCED_TABLES: readonly TableDef[] = [
     'recurrence_template_id uuid?',
     'completed_at timestamptz?',
     'rank text',
+    'project_id uuid?',
   ]),
   table('task_events', [
     'task_id uuid',
@@ -249,6 +255,175 @@ export const SYNCED_TABLES: readonly TableDef[] = [
     'algorithm_version text?',
     'completed_at timestamptz?',
   ]),
+  table('projects', [
+    'kind text',
+    'title text',
+    'objective text?',
+    'description text?',
+    'status text',
+    'category_id uuid?',
+    'goal_id uuid?',
+    'start_date date?',
+    'deadline date?',
+    'completed_at timestamptz?',
+    'completion_summary text?',
+    'rank text',
+  ]),
+  table('project_stages', ['project_id uuid', 'title text', 'description text?', 'deadline date?', 'status text', 'rank text']),
+  table('skills', [
+    'parent_id uuid?',
+    'name text',
+    'description text?',
+    'category_id uuid?',
+    'goal_id uuid?',
+    'level int',
+    'target_level int?',
+    'rank text',
+  ]),
+  table('skill_progress_entries', ['skill_id uuid', 'level int?', 'note text?', 'source text', 'source_id uuid?', 'recorded_at timestamptz']),
+  table('learning_items', [
+    'kind text',
+    'title text',
+    'author_or_provider text?',
+    'url text?',
+    'status text',
+    'progress_current real?',
+    'progress_total real?',
+    'progress_unit text',
+    'started_on date?',
+    'completed_on date?',
+    'rating int?',
+    'notes text?',
+    'goal_id uuid?',
+    'skill_id uuid?',
+  ]),
+  table('focus_sessions', [
+    'kind text',
+    'source text',
+    'started_at timestamptz',
+    'ended_at timestamptz?',
+    'duration_seconds int',
+    'pause_seconds int',
+    'planned_minutes int?',
+    'task_id uuid?',
+    'goal_id uuid?',
+    'project_id uuid?',
+    'learning_item_id uuid?',
+    'schedule_block_id uuid?',
+    'quality int?',
+    'notes text?',
+    'status text',
+  ]),
+  table('study_videos', [
+    'focus_session_id uuid?',
+    'task_id uuid?',
+    'goal_id uuid?',
+    'recorded_on date',
+    'storage_path text',
+    'mime_type text',
+    'size_bytes int',
+    'duration_seconds int?',
+    'session_minutes int?',
+    'notes text?',
+    'upload_status text',
+    'upload_error text?',
+  ]),
+  table('exercises', ['name text', 'kind text', 'muscle_group text?', 'equipment text?', 'weight_unit text', 'notes text?']),
+  table('workout_plans', ['name text', 'description text?', 'goal_id uuid?', 'rank text']),
+  table('workout_plan_items', [
+    'plan_id uuid',
+    'exercise_id uuid',
+    'position int',
+    'target_sets int',
+    'target_reps int?',
+    'target_weight real?',
+    'rest_seconds int?',
+    'notes text?',
+  ]),
+  table('workout_sessions', [
+    'plan_id uuid?',
+    'title text',
+    'started_at timestamptz',
+    'ended_at timestamptz?',
+    'schedule_block_id uuid?',
+    'perceived_effort int?',
+    'notes text?',
+  ]),
+  table('workout_sets', [
+    'session_id uuid',
+    'exercise_id uuid',
+    'set_index int',
+    'reps int?',
+    'weight real?',
+    'duration_seconds int?',
+    'distance_m real?',
+    'rpe real?',
+    'is_warmup bool',
+    'completed_at timestamptz?',
+  ]),
+  table('sports', ['name text', 'position text?', 'notes text?']),
+  table('training_sessions', [
+    'sport_id uuid',
+    'session_type text',
+    'started_at timestamptz',
+    'duration_minutes int',
+    'intensity int?',
+    'performance_rating int?',
+    'focus text?',
+    'notes text?',
+    'schedule_block_id uuid?',
+    'goal_id uuid?',
+  ]),
+  table(
+    'training_session_skills',
+    ['training_session_id uuid', 'skill_id uuid', 'minutes int?', 'rating int?', 'note text?'],
+    ['training_session_id', 'skill_id'],
+  ),
+  table('people', ['name text', 'birthday_month int?', 'birthday_day int?', 'birth_year int?', 'relationship text?', 'notes text?']),
+  table('experiences', [
+    'title text',
+    'description text?',
+    'category text',
+    'status text',
+    'target_date date?',
+    'completed_on date?',
+    'location text?',
+    'rating int?',
+    'notes text?',
+  ]),
+  table(
+    'journal_entries',
+    ['entry_date date', 'went_well text?', 'could_improve text?', 'learned text?', 'looking_forward text?', 'free_text text?'],
+    ['entry_date'],
+  ),
+  table('decisions', [
+    'title text',
+    'decided_on date?',
+    'context text?',
+    'alternatives text?',
+    'reasoning text?',
+    'expected_outcome text?',
+    'confidence int?',
+    'review_on date?',
+    'actual_outcome text?',
+    'reflection text?',
+    'status text',
+  ]),
+  table('ideas', [
+    'title text',
+    'description text?',
+    'category_id uuid?',
+    'research text?',
+    'potential int?',
+    'next_steps text?',
+    'status text',
+    'project_id uuid?',
+  ]),
+  table(
+    'sleep_logs',
+    ['sleep_date date', 'bed_at time?', 'wake_at time?', 'duration_minutes int?', 'energy int?', 'recovery int?', 'notes text?'],
+    ['sleep_date'],
+  ),
 ];
 
 export type SyncedTableName =
@@ -268,7 +443,28 @@ export type SyncedTableName =
   | 'task_events'
   | 'calendar_events'
   | 'reminders'
-  | 'schedule_blocks';
+  | 'schedule_blocks'
+  | 'projects'
+  | 'project_stages'
+  | 'skills'
+  | 'skill_progress_entries'
+  | 'learning_items'
+  | 'focus_sessions'
+  | 'study_videos'
+  | 'exercises'
+  | 'workout_plans'
+  | 'workout_plan_items'
+  | 'workout_sessions'
+  | 'workout_sets'
+  | 'sports'
+  | 'training_sessions'
+  | 'training_session_skills'
+  | 'people'
+  | 'experiences'
+  | 'journal_entries'
+  | 'decisions'
+  | 'ideas'
+  | 'sleep_logs';
 
 export function tableDef(name: string): TableDef {
   const t = SYNCED_TABLES.find((x) => x.name === name);
