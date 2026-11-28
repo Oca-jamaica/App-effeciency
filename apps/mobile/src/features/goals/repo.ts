@@ -3,7 +3,7 @@ import { goalProgress, type Progress } from '@ascend/domain';
 import type { Store } from '../../data/store.ts';
 import { rankAtEnd, rankBetween } from '../../data/ranks.ts';
 import type { ChecklistItem, Goal, GoalStatus, KnowledgeItem, Milestone, Note, NoteType, ProgressEntry, Task } from '../../data/types.ts';
-import { isoDate, optionalText, parseOrThrow, requiredTitle, url } from '../../data/validation.ts';
+import { isoDate, optionalText, parseOrThrow, requiredTitle, url, ValidationError } from '../../data/validation.ts';
 
 // ───────────────────────────── goals ─────────────────────────────
 
@@ -40,8 +40,35 @@ export async function activeGoalRanks(store: Store): Promise<Map<string, { rank:
   return new Map(goals.map((g, i) => [g.id, { rank: i + 1, title: g.title }]));
 }
 
-export async function createGoal(store: Store, input: GoalInput, today: string): Promise<Goal> {
+export interface MilestoneDraft {
+  title: string;
+  deadline?: string | null;
+}
+
+/**
+ * Checks the markers entered while creating a goal. Blank rows are ignored; a dated row needs a
+ * title, and no marker may fall after the goal's own deadline.
+ */
+export function validateMilestoneDrafts(drafts: readonly MilestoneDraft[], goalDeadline: string | null | undefined): { title: string; deadline: string | null }[] {
+  const out: { title: string; deadline: string | null }[] = [];
+  for (const [i, d] of drafts.entries()) {
+    const title = d.title.trim();
+    if (!title && !d.deadline) continue;
+    const r = milestoneInput.safeParse({ title, deadline: d.deadline ?? null });
+    if (!r.success) throw new ValidationError({ milestones: `Milestone ${i + 1}: ${r.error.issues[0]?.message ?? 'check this milestone'}` });
+    if (goalDeadline && r.data.deadline && r.data.deadline > goalDeadline) {
+      throw new ValidationError({ milestones: `Milestone ${i + 1} is after the goal’s deadline` });
+    }
+    out.push({ title: r.data.title, deadline: r.data.deadline ?? null });
+  }
+  if (out.length > 30) throw new ValidationError({ milestones: 'Add up to 30 milestones here; you can add more later' });
+  return out;
+}
+
+/** Creates a goal, and any milestones entered with it, in one step: all are saved or none are. */
+export async function createGoal(store: Store, input: GoalInput, today: string, milestones: readonly MilestoneDraft[] = []): Promise<Goal> {
   const v = parseOrThrow(goalInput, input);
+  const markers = validateMilestoneDrafts(milestones, v.deadline);
   const rank = await rankAtEnd(store, 'goals', "status IN ('active','paused')");
   return store.write(async (tx) => {
     const goal = await tx.insert<Goal>('goals', {
@@ -61,6 +88,11 @@ export async function createGoal(store: Store, input: GoalInput, today: string):
     });
     if (v.progress_mode === 'target' && v.current_value !== null && v.current_value !== undefined) {
       await tx.insert('goal_progress_entries', { goal_id: goal.id, value: v.current_value, source: 'manual', recorded_at: tx.nowIso() });
+    }
+    let previous: string | null = null;
+    for (const m of markers) {
+      previous = rankBetween(previous, null);
+      await tx.insert('milestones', { goal_id: goal.id, title: m.title, deadline: m.deadline, status: 'open', rank: previous });
     }
     return goal;
   });

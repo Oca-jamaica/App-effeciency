@@ -1,6 +1,6 @@
 import { formatHours, utcToLocalMinutes } from '@ascend/domain';
 import { router } from 'expo-router';
-import { Coffee, Lock, Repeat, type LucideIcon, CircleDot, CalendarClock, Dumbbell, BookOpen } from 'lucide-react-native';
+import { Ban, Coffee, Lock, Repeat, type LucideIcon, CircleDot, CalendarClock, Dumbbell, BookOpen } from 'lucide-react-native';
 import { Pressable, StyleSheet, View } from 'react-native';
 import type { ScheduleBlock } from '@/data/types';
 import { Checkbox, Icon, Text, radius, space, useTheme } from '@/ui';
@@ -9,16 +9,28 @@ import type { EventOccurrence } from './events';
 export type TimelineItem =
   | { type: 'event'; key: string; start: number; end: number; occurrence: EventOccurrence }
   | { type: 'block'; key: string; start: number; end: number; block: ScheduleBlock }
-  | { type: 'free'; key: string; start: number; end: number };
+  | { type: 'free'; key: string; start: number; end: number }
+  | { type: 'blocked'; key: string; start: number; end: number; title: string };
+
+export interface BlockedTime {
+  key: string;
+  title: string;
+  start: number;
+  end: number;
+}
 
 export function clock(ms: number, timeZone: string): string {
   const m = utcToLocalMinutes(ms, timeZone);
   return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 }
 
-/** Merges events and blocks into one ordered day, with free gaps of 30+ minutes made visible. */
-export function buildTimeline(blocks: ScheduleBlock[], events: EventOccurrence[], dayStart: number, dayEnd: number): TimelineItem[] {
+/**
+ * Merges events, blocks and blocked-out time into one ordered day, with free gaps of 30+ minutes made
+ * visible. Blocked time that has already ended before `dayStart` is left out.
+ */
+export function buildTimeline(blocks: ScheduleBlock[], events: EventOccurrence[], dayStart: number, dayEnd: number, blocked: readonly BlockedTime[] = []): TimelineItem[] {
   const items: TimelineItem[] = [
+    ...blocked.filter((w) => w.end > dayStart).map((w) => ({ type: 'blocked' as const, key: `w:${w.key}`, start: w.start, end: w.end, title: w.title })),
     ...events.filter((o) => !o.event.all_day).map((o) => ({ type: 'event' as const, key: `e:${o.key}`, start: o.start, end: o.end, occurrence: o })),
     ...blocks
       .filter((b) => b.status !== 'unplanned' && b.status !== 'skipped')
@@ -65,6 +77,22 @@ export function TimelineRow({
           </Text>
         </View>
       </View>
+    );
+  }
+  if (item.type === 'blocked') {
+    return (
+      <Pressable accessibilityRole="button" accessibilityLabel={`${item.title}, ${time}, blocked out`} accessibilityHint="Opens blocked time settings" onPress={() => router.push('/(app)/settings/hours')} style={styles.row}>
+        <Text variant="caption" tone="tertiary" tabular style={styles.time}>
+          {clock(item.start, timeZone)}
+        </Text>
+        <View style={[styles.blocked, { borderColor: colors.border, backgroundColor: colors.surfaceSecondary }]}>
+          <Icon icon={Ban} size={14} tone="tertiary" />
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text variant="bodyStrong" tone="secondary" numberOfLines={1}>{item.title}</Text>
+            <Text variant="caption" tone="tertiary" tabular>{time} · blocked out</Text>
+          </View>
+        </View>
+      </Pressable>
     );
   }
   if (item.type === 'event') {
@@ -153,4 +181,5 @@ const styles = StyleSheet.create({
     borderLeftWidth: 3,
   },
   free: { flex: 1, borderWidth: StyleSheet.hairlineWidth, borderStyle: 'dashed', borderRadius: radius.md, paddingVertical: space.sm, paddingHorizontal: space.md, justifyContent: 'center' },
+  blocked: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.md, borderWidth: StyleSheet.hairlineWidth, borderStyle: 'dashed', borderRadius: radius.md, paddingVertical: space.sm + 2, paddingHorizontal: space.md, opacity: 0.85 },
 });

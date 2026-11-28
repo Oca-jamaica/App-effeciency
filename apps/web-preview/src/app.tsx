@@ -1,11 +1,11 @@
 /* ASCEND browser preview — interface. React is loaded as a global (UMD) by the page. */
-import { addDays, describeFrequency, formatHours, monthStatus, parseCapture, parseTime, startOfMonth, addMonths, utcToLocalMinutes, type PlanResult } from '../../../packages/domain/src/index.ts';
+import { addDays, diffDays, goalRoadmap, describeFrequency, formatHours, monthStatus, parseCapture, parseTime, startOfMonth, addMonths, utcToLocalMinutes, type PlanResult } from '../../../packages/domain/src/index.ts';
 import {
   TZ, exampleRecords, logTask, nextRank, nowIso, store, todayStr, uid, weekStart,
-  type Block, type CalEvent, type Goal, type Habit, type Note, type Prefs, type Priority, type Task, type Window,
+  type BlockedArea, type Block, type CalEvent, type Goal, type Habit, type Milestone, type Note, type Prefs, type Priority, type Task, type Window,
 } from './store.ts';
 import {
-  activeGoals, atLocal, blocksOn, clock, dateLabel, hourLabel, eventsOn, goalProgressFor, habitDay, habitEntries, habitRule, laterTodaySlot,
+  activeGoals, atLocal, blockedOn, blocksOn, clock, dateLabel, hourLabel, eventsOn, goalProgressFor, habitDay, habitEntries, habitRule, laterTodaySlot,
   minutesBetween, moveMissedTo, previewDay, replanToday, setHabitLog,
 } from './logic.ts';
 
@@ -74,8 +74,9 @@ function Home() {
 
   // Timeline: events + blocks + visible free gaps.
   const bounds = { start: Math.max(atLocal(today, parseTime(p.dayStart)), Math.floor((now - 3_600_000) / 300_000) * 300_000), end: atLocal(today, parseTime(p.dayEnd)) };
-  type Item = { key: string; start: number; end: number; ev?: CalEvent; block?: Block };
+  type Item = { key: string; start: number; end: number; ev?: CalEvent; block?: Block; blocked?: string };
   const items: Item[] = [
+    ...blockedOn(today).map((w) => ({ key: `w${w.key}`, start: w.start, end: w.end, blocked: w.title })),
     ...events.map((o) => ({ key: `e${o.event.id}`, start: o.start, end: o.end, ev: o.event })),
     ...blocks.map((b) => ({ key: b.id, start: b.start, end: b.end, block: b })),
   ].filter((i) => i.end > bounds.start).sort((a, b) => a.start - b.start);
@@ -155,6 +156,8 @@ function Home() {
               {timeline.map((it) =>
                 'free' in it ? (
                   <div key={it.key} className="tl-row"><span className="tl-time">{clock(it.start)}</span><div className="tl-free">Free · {formatHours(minutesBetween(it.start, it.end))}</div></div>
+                ) : it.blocked ? (
+                  <div key={it.key} className="tl-row"><span className="tl-time">{clock(it.start)}</span><button type="button" className="tl-card tl-blocked" onClick={() => nav.go('profile')}><div className="tl-title">{it.blocked}</div><div className="tl-sub">{clock(it.start)}–{clock(it.end)} · blocked out</div></button></div>
                 ) : it.ev ? (
                   <div key={it.key} className="tl-row"><span className="tl-time">{clock(it.start)}</span><div className="tl-card tl-event"><div className="tl-title">{it.ev.title}{it.ev.locked ? <span className="lock" title="Locked">●</span> : null}</div><div className="tl-sub">{clock(it.start)}–{clock(it.end)} · fixed</div></div></div>
                 ) : it.block ? (
@@ -424,12 +427,24 @@ function GoalForm({ goal, onClose }: { goal?: Goal; onClose: () => void }) {
   const [current, setCurrent] = useState(goal?.current?.toString() ?? '');
   const [unit, setUnit] = useState(goal?.unit ?? '');
   const [error, setError] = useState<string | null>(null);
+  const [markers, setMarkers] = useState<{ title: string; date: string }[]>([{ title: '', date: '' }]);
+  const [markerError, setMarkerError] = useState<string | null>(null);
+  const setMarker = (i: number, patch: Partial<{ title: string; date: string }>) => setMarkers((cur) => cur.map((m, j) => (j === i ? { ...m, ...patch } : m)));
   const save = () => {
     if (!title.trim()) return setError('Give your goal a name');
     if (mode === 'target' && !target.trim()) return setError('Set a target value');
+    const kept = goal ? [] : markers.map((m, i) => ({ ...m, n: i + 1, title: m.title.trim() })).filter((m) => m.title || m.date);
+    for (const m of kept) {
+      if (!m.title) return setMarkerError(`Milestone ${m.n} needs a name`);
+      if (deadline && m.date && m.date > deadline) return setMarkerError(`Milestone ${m.n} is after the goal’s deadline`);
+    }
+    setMarkerError(null);
     const base: Goal = goal ?? { id: uid(), kind: 'goal', title: '', why: '', status: 'active', rank: nextRank(activeGoals()), deadline: null, mode: 'milestones', target: null, current: null, unit: '', manual: null, createdAt: nowIso() };
-    store.save({ ...base, title: title.trim(), why: why.trim(), deadline: deadline || null, mode, target: target ? Number(target) : null, current: current ? Number(current) : null, unit: unit.trim() });
-    toast(goal ? 'Goal saved' : 'Goal created. Add milestones to map the way.');
+    store.save(
+      { ...base, title: title.trim(), why: why.trim(), deadline: deadline || null, mode, target: target ? Number(target) : null, current: current ? Number(current) : null, unit: unit.trim() },
+      ...kept.map((m, i): Milestone => ({ id: uid(), kind: 'milestone', goalId: base.id, title: m.title, deadline: m.date || null, done: false, doneAt: null, rank: i + 1 })),
+    );
+    toast(goal ? 'Goal saved' : kept.length ? `Goal created with ${kept.length} milestone${kept.length === 1 ? '' : 's'}` : 'Goal created. Add milestones to map the way.');
     onClose();
   };
   return (
@@ -437,6 +452,24 @@ function GoalForm({ goal, onClose }: { goal?: Goal; onClose: () => void }) {
       <Field label="Goal" error={error}><input id="goal-title" className="input" autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Improve my Economics grade" maxLength={200} /></Field>
       <Field label="Why it matters to you" hint="A reason you’ll still believe on a hard day."><textarea id="goal-why" className="input" rows={2} value={why} onChange={(e) => setWhy(e.target.value)} /></Field>
       <Field label="Deadline (optional)"><input id="goal-deadline" className="input" type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} /></Field>
+      {!goal ? (
+        <div className="field">
+          <span className="field-label">Milestones</span>
+          <div className="markers">
+            {markers.map((m, i) => (
+              <div key={i} className="marker-row">
+                <div className="inline-form">
+                  <input id={`marker-${i}`} className="input" aria-label={`Milestone ${i + 1}`} placeholder={i === 0 ? 'e.g. Finish unit 1 notes' : `Milestone ${i + 1}`} maxLength={200} value={m.title} onChange={(e) => setMarker(i, { title: e.target.value })} />
+                  {markers.length > 1 ? <button type="button" className="x" aria-label={`Remove milestone ${i + 1}`} onClick={() => setMarkers((cur) => cur.filter((_, j) => j !== i))}>✕</button> : null}
+                </div>
+                <label className="marker-date"><span className="muted small">Reach it by</span><input id={`marker-date-${i}`} className="input" type="date" min={todayStr()} max={deadline || undefined} value={m.date} onChange={(e) => setMarker(i, { date: e.target.value })} /></label>
+              </div>
+            ))}
+          </div>
+          {markerError ? <span className="field-error" role="alert">{markerError}</span> : <span className="field-hint">The markers along the way, each with an optional date. You can add more and change them later.</span>}
+          {markers.length < 30 ? <div><Btn small kind="secondary" onClick={() => setMarkers((cur) => [...cur, { title: '', date: '' }])}>+ Add milestone</Btn></div> : null}
+        </div>
+      ) : null}
       <Field label="How progress is measured"><Chips value={mode} onChange={setMode} options={[{ value: 'milestones', label: 'Milestones' }, { value: 'tasks', label: 'Tasks' }, { value: 'target', label: 'Target' }, { value: 'manual', label: 'Manual %' }]} /></Field>
       {mode === 'target' ? (
         <div className="grid3">
@@ -471,6 +504,7 @@ function GoalDetail({ id, onBack }: { id: string; onBack: () => void }) {
   const [linkTitle, setLinkTitle] = useState('');
   const [linkUrl, setLinkUrl] = useState('');
   const [progress, setProgress] = useState('');
+  const [editingMs, setEditingMs] = useState<Milestone | null>(null);
   if (!goal) return <div className="screen"><Back onBack={onBack} /><Empty title="This goal no longer exists" body="It may have been deleted." /></div>;
   const p = goalProgressFor(goal);
   const milestones = store.all('milestone').filter((m) => m.goalId === id).sort((a, b) => a.rank - b.rank);
@@ -509,10 +543,12 @@ function GoalDetail({ id, onBack }: { id: string; onBack: () => void }) {
         ) : null}
       </div>
 
-      <Section title="Milestones">
+      <Roadmap goal={goal} milestones={milestones} />
+
+      <Section title="Milestones" hint="Tap a milestone to rename it or change its date.">
         <div className="group">
           {milestones.map((m) => (
-            <Row key={m.id} lead={<Check checked={m.done} label={`${m.title} done`} onChange={() => { store.save({ ...m, done: !m.done, doneAt: m.done ? null : nowIso() }); if (!m.done) toast('Milestone complete. Progress updated.'); }} />} title={m.title} sub={[m.deadline ? `By ${dateLabel(m.deadline)}` : null, `${tasks.filter((t) => t.milestoneId === m.id).length} tasks`].filter(Boolean).join(' · ')} muted={m.done} trail={<button type="button" className="x" aria-label={`Delete ${m.title}`} onClick={() => { store.remove(m.id); toast('Milestone deleted', () => store.save(m)); }}>✕</button>} />
+            <Row key={m.id} onClick={() => setEditingMs(m)} lead={<Check checked={m.done} label={`${m.title} done`} onChange={() => { store.save({ ...m, done: !m.done, doneAt: m.done ? null : nowIso() }); if (!m.done) toast('Milestone complete. Progress updated.'); }} />} title={m.title} sub={[m.deadline ? `By ${dateLabel(m.deadline)}` : null, `${tasks.filter((t) => t.milestoneId === m.id).length} tasks`].filter(Boolean).join(' · ')} muted={m.done} trail={<button type="button" className="x" aria-label={`Delete ${m.title}`} onClick={(e) => { e.stopPropagation(); store.remove(m.id); toast('Milestone deleted', () => store.save(m)); }}>✕</button>} />
           ))}
         </div>
         <div className="inline-form">
@@ -560,6 +596,51 @@ function GoalDetail({ id, onBack }: { id: string; onBack: () => void }) {
         <ConfirmButton label="Delete goal" confirmLabel="Delete" onConfirm={() => { const related = [...milestones, ...checks, ...notes, ...links]; store.remove(id, ...related.map((r) => r.id)); onBack(); toast('Goal deleted', () => store.save(goal, ...related)); }} />
       </div>
       {edit ? <GoalForm goal={goal} onClose={() => setEdit(false)} /> : null}
+      {editingMs ? <MilestoneSheet milestone={editingMs} deadline={goal.deadline} onClose={() => setEditingMs(null)} /> : null}
+    </div>
+  );
+}
+
+function MilestoneSheet({ milestone, deadline, onClose }: { milestone: Milestone; deadline: string | null; onClose: () => void }) {
+  const toast = useToast();
+  const [title, setTitle] = useState(milestone.title);
+  const [date, setDate] = useState(milestone.deadline ?? '');
+  const [error, setError] = useState<string | null>(null);
+  const save = () => {
+    if (!title.trim()) return setError('Give the milestone a name');
+    if (deadline && date && date > deadline) return setError('This is after the goal’s deadline');
+    store.save({ ...milestone, title: title.trim(), deadline: date || null });
+    toast('Milestone saved');
+    onClose();
+  };
+  return (
+    <Sheet title="Milestone" onClose={onClose} footer={<Btn full onClick={save}>Save</Btn>}>
+      <Field label="Name" error={error}><input id="ms-edit-title" className="input" autoFocus maxLength={200} value={title} onChange={(e) => setTitle(e.target.value)} /></Field>
+      <Field label="Reach it by (optional)"><input id="ms-edit-date" className="input" type="date" max={deadline || undefined} value={date} onChange={(e) => setDate(e.target.value)} /></Field>
+    </Sheet>
+  );
+}
+
+/** The goal's milestones as markers on a line from its start to its deadline, with today marked. */
+function Roadmap({ goal, milestones }: { goal: Goal; milestones: Milestone[] }) {
+  const today = todayStr();
+  const r = goalRoadmap({ startDate: goal.createdAt.slice(0, 10), deadline: goal.deadline, today, milestones: milestones.map((m) => ({ id: m.id, title: m.title, deadline: m.deadline, status: m.done ? 'done' : 'open' })) });
+  if (!r.markers.length || !r.end) return null;
+  const pct = (p: number) => `${Math.round(p * 1000) / 10}%`;
+  const when = (d: string) => { const n = diffDays(today, d); return n === 0 ? 'today' : n === 1 ? 'tomorrow' : n > 0 ? `in ${n} days` : `${-n} day${n === -1 ? '' : 's'} late`; };
+  return (
+    <div className="card">
+      <strong>Roadmap</strong>
+      <div className="roadmap" role="img" aria-label={`Roadmap: ${r.markers.map((m) => `${m.title} ${m.done ? 'done' : `by ${dateLabel(m.date!)}`}`).join('; ')}`}>
+        <div className="rm-line" />
+        {r.todayPosition !== null ? <div className="rm-fill" style={{ width: pct(r.todayPosition) }} /> : null}
+        {r.todayPosition !== null ? <div className="rm-today" style={{ left: pct(r.todayPosition) }} title="Today" /> : null}
+        {r.markers.map((m) => <div key={m.id} className={`rm-dot${m.done ? ' done' : m.overdue ? ' late' : ''}`} style={{ left: pct(m.position ?? 0) }} title={`${m.title} · ${dateLabel(m.date!)}${m.done ? ' · done' : ''}`} />)}
+      </div>
+      <div className="between"><span className="muted small">{dateLabel(r.start)}</span><span className="muted small">{goal.deadline ? `Deadline ${dateLabel(r.end)}` : dateLabel(r.end)}</span></div>
+      {r.next ? <p className="small"><span className="muted">Next:</span> {r.next.title} · {when(r.next.date!)}</p> : <p className="muted small">Every dated milestone is done.</p>}
+      {r.overdueCount ? <p className="muted small">{r.overdueCount} milestone{r.overdueCount === 1 ? ' is' : 's are'} past {r.overdueCount === 1 ? 'its' : 'their'} date. Mark {r.overdueCount === 1 ? 'it' : 'them'} done or choose a new date.</p> : null}
+      {r.undated.length ? <p className="muted small">{r.undated.length} milestone{r.undated.length === 1 ? ' has' : 's have'} no date, so {r.undated.length === 1 ? 'it isn’t' : 'they aren’t'} on the line.</p> : null}
     </div>
   );
 }
@@ -710,6 +791,7 @@ function CalendarPane({ onEvent }: { onEvent: (e: CalEvent) => void }) {
     : (preview?.blocks ?? []).map((b) => ({ key: b.key, start: b.start, end: b.end, title: b.title, type: b.kind, locked: false, done: false, preview: true }));
   const events = eventsOn(date);
   const ws = weekStart(date);
+  const [blocking, setBlocking] = useState(false);
   return (
     <>
       <Seg value={mode} onChange={setMode} options={[{ value: 'day', label: 'Day' }, { value: 'week', label: 'Week' }]} />
@@ -721,8 +803,11 @@ function CalendarPane({ onEvent }: { onEvent: (e: CalEvent) => void }) {
       {mode === 'day' ? (
         <>
           {preview ? <p className="muted small">Preview of how this day would be planned. It’s confirmed automatically on the day.</p> : null}
+          <div><button type="button" className="link-btn" onClick={() => setBlocking(true)}>Block out time (school, mornings…)</button></div>
+          {blocking ? <BlockedSheet onClose={() => setBlocking(false)} /> : null}
           <div className="daygrid" style={{ height: (dayEndH - dayStartH) * HOUR + 12 }}>
             {Array.from({ length: dayEndH - dayStartH + 1 }, (_, i) => <div key={i} className="hour" style={{ top: i * HOUR }}><span>{hourLabel(date, dayStartH + i)}</span></div>)}
+            {blockedOn(date).filter((w) => y(w.end) > 0 && y(w.start) < (dayEndH - dayStartH) * HOUR).map((w) => <div key={w.key} className="dg-item dg-blocked" style={{ top: Math.max(0, y(w.start)), height: Math.max(20, y(w.end) - Math.max(0, y(w.start))) }} title={`${w.title} · blocked out`}>{w.title} · blocked</div>)}
             {events.map((o) => <button type="button" key={o.event.id} className="dg-item dg-event" style={{ top: Math.max(0, y(o.start)), height: Math.max(20, y(o.end) - Math.max(0, y(o.start))) }} onClick={() => onEvent(o.event)}>{o.event.locked ? '● ' : ''}{o.event.title}</button>)}
             {blocks.map((b) => <div key={b.key} className={`dg-item dg-${b.type}${b.done ? ' is-done' : ''}${b.preview ? ' is-preview' : ''}`} style={{ top: y(b.start), height: Math.max(20, y(b.end) - y(b.start)) }}>{b.locked ? '● ' : ''}{b.title}</div>)}
             {isToday && y(now) > 0 && y(now) < (dayEndH - dayStartH) * HOUR ? <div className="now-line" style={{ top: y(now) }} /> : null}
@@ -945,6 +1030,7 @@ function ProfileTab() {
   const p = store.prefs();
   const set = (patch: Partial<Prefs>) => store.save({ ...p, ...patch });
   const [studyOn, setStudyOn] = useState(!!p.study);
+  const [blockEdit, setBlockEdit] = useState<BlockedArea | 'new' | null>(null);
   const nav = useNav();
   const ideas = store.all('note').filter((n) => n.type === 'idea');
   useEffect(() => applyTheme(p.theme), [p.theme]);
@@ -968,6 +1054,16 @@ function ProfileTab() {
       <Section title="Appearance">
         <Seg value={p.theme} onChange={(v) => set({ theme: v })} options={[{ value: 'system', label: 'System' }, { value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }]} />
       </Section>
+      <Section title="Blocked time" action="Add" onAction={() => setBlockEdit('new')} hint="Time that’s already taken, like school or your morning routine. ASCEND never plans over it.">
+        {p.blocked.length ? (
+          <div className="group">
+            {[...p.blocked].sort((a, b) => a.from.localeCompare(b.from)).map((a) => (
+              <Row key={a.id} title={a.label} sub={`${dayNames(a.days)} · ${a.from}–${a.to}`} onClick={() => setBlockEdit(a)} trail={<button type="button" className="x" aria-label={`Remove ${a.label}`} onClick={(e) => { e.stopPropagation(); set({ blocked: p.blocked.filter((x) => x.id !== a.id) }); toast(`${a.label} removed`, () => set({ blocked: [...store.prefs().blocked, a] })); }}>✕</button>} />
+            ))}
+          </div>
+        ) : <Btn small kind="secondary" onClick={() => setBlockEdit('new')}>Block out time</Btn>}
+      </Section>
+      {blockEdit ? <BlockedSheet area={blockEdit === 'new' ? undefined : blockEdit} onClose={() => setBlockEdit(null)} /> : null}
       <Section title="Planning" hint="ASCEND only plans inside your day, and stops before your free time is used up.">
         <div className="grid2">
           <Field label="Day starts"><input id="pref-start" className="input" type="time" value={p.dayStart} onChange={(e) => e.target.value && e.target.value < p.dayEnd && set({ dayStart: e.target.value })} /></Field>
@@ -1002,6 +1098,58 @@ function ProfileTab() {
         </div>
       </Section>
     </div>
+  );
+}
+
+function dayNames(days: number[]): string {
+  const set = new Set(days);
+  if (set.size === 7) return 'Every day';
+  if (set.size === 5 && [1, 2, 3, 4, 5].every((d) => set.has(d))) return 'Weekdays';
+  if (set.size === 2 && set.has(0) && set.has(6)) return 'Weekends';
+  return DAYS.filter((d) => set.has(d.value)).map((d) => d.label).join(', ');
+}
+
+const BLOCKED_PRESETS: Omit<BlockedArea, 'id'>[] = [
+  { label: 'Morning routine', days: [0, 1, 2, 3, 4, 5, 6], from: '06:30', to: '08:00' },
+  { label: 'School', days: [1, 2, 3, 4, 5], from: '08:30', to: '15:30' },
+  { label: 'Commute', days: [1, 2, 3, 4, 5], from: '15:30', to: '16:15' },
+  { label: 'Dinner', days: [0, 1, 2, 3, 4, 5, 6], from: '18:30', to: '19:15' },
+  { label: 'Wind down', days: [0, 1, 2, 3, 4, 5, 6], from: '21:30', to: '22:30' },
+];
+
+function BlockedSheet({ area, onClose }: { area?: BlockedArea; onClose: () => void }) {
+  const toast = useToast();
+  const [label, setLabel] = useState(area?.label ?? '');
+  const [days, setDays] = useState<number[]>(area?.days ?? [1, 2, 3, 4, 5]);
+  const [from, setFrom] = useState(area?.from ?? '08:30');
+  const [to, setTo] = useState(area?.to ?? '15:30');
+  const [error, setError] = useState<string | null>(null);
+  const preset = BLOCKED_PRESETS.find((x) => x.label === label)?.label ?? null;
+  const save = () => {
+    if (!label.trim()) return setError('Give it a name, like School or Morning routine');
+    if (!days.length) return setError('Choose at least one day');
+    if (!from || !to || to <= from) return setError('The end must be after the start');
+    const p = store.prefs();
+    const rec: BlockedArea = { id: area?.id ?? uid(), label: label.trim().slice(0, 60), days, from, to };
+    store.save({ ...p, blocked: area ? p.blocked.map((x) => (x.id === area.id ? rec : x)) : [...p.blocked, rec] });
+    toast(`${rec.label} blocked out. Your plan works around it.`);
+    onClose();
+  };
+  return (
+    <Sheet title={area ? 'Edit blocked time' : 'Block out time'} onClose={onClose} footer={<Btn full onClick={save}>Save</Btn>}>
+      {!area ? (
+        <div className="field">
+          <span className="field-label">Quick start</span>
+          <Chips value={preset} onChange={(v) => { const x = BLOCKED_PRESETS.find((b) => b.label === v); if (x) { setLabel(x.label); setDays(x.days); setFrom(x.from); setTo(x.to); setError(null); } }} options={BLOCKED_PRESETS.map((x) => ({ value: x.label, label: x.label }))} />
+        </div>
+      ) : null}
+      <Field label="Name" error={error}><input id="blocked-label" className="input" maxLength={60} placeholder="School, Morning routine, Commute…" value={label} onChange={(e) => setLabel(e.target.value)} /></Field>
+      <div className="field"><span className="field-label">Days</span><Chips value={days} onChange={(d) => setDays((cur) => (cur.includes(d) ? cur.filter((x) => x !== d) : [...cur, d]))} options={DAYS} /></div>
+      <div className="grid2">
+        <Field label="From"><input id="blocked-from" className="input" type="time" value={from} onChange={(e) => setFrom(e.target.value)} /></Field>
+        <Field label="To"><input id="blocked-to" className="input" type="time" value={to} onChange={(e) => setTo(e.target.value)} /></Field>
+      </div>
+    </Sheet>
   );
 }
 

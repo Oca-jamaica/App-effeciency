@@ -47,6 +47,8 @@ export interface AvailabilityWindowRow extends BaseRow {
   start_time: string;
   end_time: string;
   kind: AvailabilityKind;
+  /** The user's name for this time, e.g. "School" or "Morning routine". */
+  label: string | null;
 }
 
 export interface Category extends BaseRow {

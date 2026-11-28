@@ -15,6 +15,8 @@ import {
   NOTE_TYPE_LABELS, addChecklistItem, addMilestone, addResource, deleteChecklistItem, deleteGoal, deleteMilestone, deleteNote, deleteResource,
   loadGoalDetail, recordProgress, restoreGoal, saveNote, setGoalStatus, setMilestoneDone, toggleChecklistItem, toggleResourceFavorite, updateMilestone,
 } from './repo';
+import { RoadmapCard } from './Roadmap';
+import { useToday, useUserContext } from '@/hooks/useUser';
 
 /** iOS action sheet / Android alert menu, so long-press menus feel native on each platform. */
 export function showMenu(title: string, options: { label: string; destructive?: boolean; onPress: () => void }[]): void {
@@ -32,6 +34,8 @@ export function GoalDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const store = useStore();
   const toast = useToast();
+  const ctx = useUserContext();
+  const { today } = useToday(ctx.timeZone);
   const detail = useLive((s) => loadGoalDetail(s, id), [id], ['goals', 'milestones', 'goal_checklist_items', 'tasks', 'notes', 'knowledge_items', 'goal_progress_entries']);
   const [sheet, setSheet] = useState<null | { kind: 'milestone'; milestone?: Milestone } | { kind: 'note'; note?: Note } | { kind: 'resource' } | { kind: 'progress' }>(null);
   const [newItem, setNewItem] = useState('');
@@ -98,6 +102,8 @@ export function GoalDetailScreen() {
             <Button label="Update progress" size="sm" variant="secondary" onPress={() => setSheet({ kind: 'progress' })} />
           ) : null}
         </Card>
+
+        <RoadmapCard goal={goal} milestones={d.milestones} today={today} />
 
         <Section title="Milestones" action="Add" onAction={() => setSheet({ kind: 'milestone' })}>
           {d.milestones.length ? (

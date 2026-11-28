@@ -9,6 +9,7 @@ import Animated, { runOnJS, useAnimatedStyle, useSharedValue } from 'react-nativ
 import type { ScheduleBlock } from '@/data/types';
 import { Text, radius, space, useTheme } from '@/ui';
 import type { EventOccurrence } from './events';
+import type { BlockedTime } from './Timeline';
 
 const HOUR = 56;
 const SNAP_MIN = 5;
@@ -24,6 +25,7 @@ export function DayGrid({
   endHour,
   blocks,
   events,
+  blocked = [],
   now,
   onMoveBlock,
   onBlockPress,
@@ -34,6 +36,7 @@ export function DayGrid({
   endHour: number;
   blocks: ScheduleBlock[];
   events: EventOccurrence[];
+  blocked?: readonly BlockedTime[];
   now: number;
   onMoveBlock: (block: ScheduleBlock, newStart: number) => void;
   onBlockPress: (block: ScheduleBlock) => void;
@@ -54,6 +57,17 @@ export function DayGrid({
           <View style={[styles.rule, { backgroundColor: colors.border }]} />
         </View>
       ))}
+      {blocked.filter((w) => toY(w.end) > 0 && toY(w.start) < (endHour - startHour) * HOUR).map((w) => {
+        const top = Math.max(0, toY(w.start));
+        const height = Math.max(22, toY(w.end) - top);
+        return (
+          <View key={`w:${w.key}`} style={[styles.blocked, { top, height, borderColor: colors.border, backgroundColor: colors.surfaceSecondary }]} accessibilityLabel={`${w.title}, blocked out`}>
+            <Text variant="caption" tone="tertiary" numberOfLines={1} onPress={() => router.push('/(app)/settings/hours')}>
+              {w.title} · blocked
+            </Text>
+          </View>
+        );
+      })}
       {events
         .filter((o) => !o.event.all_day)
         .map((o) => {
@@ -150,4 +164,5 @@ const styles = StyleSheet.create({
   rule: { flex: 1, height: StyleSheet.hairlineWidth },
   item: { position: 'absolute', left: 48, right: 0, borderRadius: radius.sm, borderLeftWidth: 3, paddingHorizontal: space.sm, paddingVertical: 3, overflow: 'hidden' },
   now: { position: 'absolute', left: 44, right: 0, height: 2, borderRadius: 1 },
+  blocked: { position: 'absolute', left: 48, right: 0, borderRadius: radius.sm, borderWidth: StyleSheet.hairlineWidth, borderStyle: 'dashed', paddingHorizontal: space.sm, paddingVertical: 3, opacity: 0.7 },
 });

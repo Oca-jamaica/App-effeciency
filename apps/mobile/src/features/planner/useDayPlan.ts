@@ -4,6 +4,7 @@ import { useLive, useStore } from '@/data/DataProvider';
 import type { ScheduleBlock } from '@/data/types';
 import { occurrencesInRange, type EventOccurrence } from './events';
 import { blocksForDay, buildPlanInput, markMissedBlocks, replanDay } from './schedule';
+import { blockedTimeOn } from '@/features/settings/repo';
 import { planDay } from '@ascend/domain';
 
 const PLAN_INPUT_TABLES = ['tasks', 'habits', 'habit_logs', 'calendar_events', 'availability_windows', 'user_preferences', 'goals', 'milestones', 'categories'];
@@ -21,6 +22,7 @@ export function useDayPlan(date: string, timeZone: string, isToday: boolean) {
 
   const blocks = useLive<ScheduleBlock[]>((s) => blocksForDay(s, date), [date], ['schedule_blocks']);
   const events = useLive<EventOccurrence[]>((s) => occurrencesInRange(s, date, date, timeZone), [date, timeZone], ['calendar_events']);
+  const blocked = useLive((s) => blockedTimeOn(s, date, timeZone), [date, timeZone], ['availability_windows']);
 
   const replan = async () => {
     setPlanning(true);
@@ -55,5 +57,5 @@ export function useDayPlan(date: string, timeZone: string, isToday: boolean) {
     };
   }, [store, date, timeZone]);
 
-  return { plan, planning, planError, replan, blocks: blocks.data ?? [], events: events.data ?? [], loading: blocks.loading || events.loading, isPreview: !isToday };
+  return { plan, planning, planError, replan, blocks: blocks.data ?? [], events: events.data ?? [], blocked: blocked.data ?? [], loading: blocks.loading || events.loading, isPreview: !isToday };
 }

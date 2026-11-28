@@ -106,7 +106,10 @@ export function buildInput(date: string, now: number): PlanInput {
     const d = addDays(date, i);
     for (const o of eventsOn(d)) events.push({ id: `${o.event.id}:${d}`, title: o.event.title, start: o.start, end: o.end, busy: o.event.busy, kind: o.event.type });
   }
-  const windows = p.study ? p.study.days.map((weekday) => ({ weekday, startMinutes: parseTime(p.study!.from), endMinutes: parseTime(p.study!.to), kind: 'study' as const })) : [];
+  const windows = [
+    ...(p.study ? p.study.days.map((weekday) => ({ weekday, startMinutes: parseTime(p.study!.from), endMinutes: parseTime(p.study!.to), kind: 'study' as const })) : []),
+    ...(p.blocked ?? []).flatMap((a) => a.days.map((weekday) => ({ weekday, startMinutes: parseTime(a.from), endMinutes: parseTime(a.to), kind: 'no_scheduling' as const }))),
+  ];
   return {
     date,
     timeZone: TZ,
@@ -189,4 +192,13 @@ export function taskById(id: string | null) {
 
 export function hourLabel(date: string, hour: number): string {
   return new Date(localToUtc(date, (hour % 24) * 60, TZ)).toLocaleTimeString(undefined, { hour: 'numeric', timeZone: TZ });
+}
+
+/** Blocked-out time on a date, as instants. */
+export function blockedOn(date: string): { key: string; title: string; start: number; end: number }[] {
+  const wd = new Date(`${date}T12:00:00Z`).getUTCDay();
+  return (store.prefs().blocked ?? [])
+    .filter((a) => a.days.includes(wd))
+    .map((a) => ({ key: `${a.id}:${date}`, title: a.label, start: atLocal(date, parseTime(a.from)), end: atLocal(date, parseTime(a.to)) }))
+    .sort((a, b) => a.start - b.start);
 }

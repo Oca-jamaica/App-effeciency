@@ -1,4 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
+import { Plus, X } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { useStore } from '@/data/DataProvider';
@@ -6,8 +7,8 @@ import type { Goal, ProgressMode } from '@/data/types';
 import { ValidationError } from '@/data/validation';
 import { useCategoryOptions } from '@/features/shared/options';
 import { useToday, useUserContext } from '@/hooks/useUser';
-import { Button, ChipGroup, DateTimeField, Screen, SelectField, Text, TextField, space, useToast } from '@/ui';
-import { createGoal, updateGoal } from './repo';
+import { Button, ChipGroup, DateTimeField, IconButton, Screen, SelectField, Text, TextField, space, useTheme, useToast } from '@/ui';
+import { createGoal, updateGoal, type MilestoneDraft } from './repo';
 
 const MODES: { value: ProgressMode; label: string; hint: string }[] = [
   { value: 'milestones', label: 'Milestones', hint: 'Progress = milestones completed.' },
@@ -33,6 +34,7 @@ export function GoalEditScreen() {
   const [target, setTarget] = useState('');
   const [current, setCurrent] = useState('');
   const [unit, setUnit] = useState('');
+  const [milestones, setMilestones] = useState<MilestoneDraft[]>([{ title: '', deadline: null }]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
@@ -60,9 +62,10 @@ export function GoalEditScreen() {
       const input = { title, description, why, category_id: categoryId, deadline, progress_mode: mode, target_value: num(target), current_value: num(current), target_unit: unit };
       if (id) await updateGoal(store, id, input);
       else {
-        const g = await createGoal(store, input, today);
+        const g = await createGoal(store, input, today, milestones);
+        const count = milestones.filter((m) => m.title.trim()).length;
         router.replace({ pathname: '/(app)/goal/[id]', params: { id: g.id } });
-        toast.show('Goal created. Add milestones to map the way.');
+        toast.show(count ? `Goal created with ${count} milestone${count === 1 ? '' : 's'}` : 'Goal created. Add milestones to map the way.');
         return;
       }
       toast.show('Goal saved');
@@ -88,6 +91,7 @@ export function GoalEditScreen() {
         <ChipGroup options={MODES} value={mode} onChange={setMode} />
         <Text variant="caption" tone="tertiary">{MODES.find((m) => m.value === mode)?.hint}</Text>
       </View>
+      {!id ? <MilestoneRows value={milestones} onChange={setMilestones} today={today} deadline={deadline} error={errors.milestones} /> : null}
       {mode === 'target' ? (
         <View style={{ gap: space.md }}>
           <TextField label="Target" value={target} onChangeText={setTarget} keyboardType="decimal-pad" error={errors.target_value} />
@@ -96,5 +100,31 @@ export function GoalEditScreen() {
         </View>
       ) : null}
     </Screen>
+  );
+}
+
+/** The markers along the way, entered while creating the goal. */
+function MilestoneRows({ value, onChange, today, deadline, error }: { value: MilestoneDraft[]; onChange: (v: MilestoneDraft[]) => void; today: string; deadline: string | null; error?: string }) {
+  const { colors } = useTheme();
+  const set = (i: number, patch: Partial<MilestoneDraft>) => onChange(value.map((m, j) => (j === i ? { ...m, ...patch } : m)));
+  return (
+    <View style={{ gap: space.sm }}>
+      <Text variant="captionStrong" tone="secondary">Milestones</Text>
+      <Text variant="caption" tone="tertiary">The markers along the way, each with an optional date. You can add more, reorder and edit them later.</Text>
+      {value.map((m, i) => (
+        <View key={i} style={{ gap: space.sm, paddingVertical: space.sm, borderTopWidth: i ? 1 : 0, borderColor: colors.border }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+            <View style={{ flex: 1 }}>
+              <TextField value={m.title} onChangeText={(t) => set(i, { title: t })} placeholder={i === 0 ? 'e.g. Finish unit 1 notes' : `Milestone ${i + 1}`} accessibilityLabel={`Milestone ${i + 1}`} maxLength={200} />
+            </View>
+            {value.length > 1 ? <IconButton icon={X} label={`Remove milestone ${i + 1}`} onPress={() => onChange(value.filter((_, j) => j !== i))} /> : null}
+          </View>
+          <DateTimeField label="Reach it by" mode="date" value={m.deadline ?? null} onChange={(d: string | null) => set(i, { deadline: d })} allowClear minimumDate={today} />
+        </View>
+      ))}
+      {error ? <Text variant="caption" tone="danger">{error}</Text> : null}
+      {deadline && value.some((m) => m.deadline && m.deadline > deadline) ? <Text variant="caption" tone="danger">A milestone is dated after the goal’s deadline.</Text> : null}
+      {value.length < 30 ? <Button label="Add milestone" icon={Plus} variant="secondary" size="sm" onPress={() => onChange([...value, { title: '', deadline: null }])} /> : null}
+    </View>
   );
 }

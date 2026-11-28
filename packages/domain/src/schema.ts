@@ -83,7 +83,7 @@ export const SYNCED_TABLES: readonly TableDef[] = [
     'max_notifications_per_day int',
     'notify_block_start bool',
   ]),
-  table('availability_windows', ['weekday int', 'start_time time', 'end_time time', 'kind text']),
+  table('availability_windows', ['weekday int', 'start_time time', 'end_time time', 'kind text', 'label text?']),
   table('categories', [
     'name text',
     'color text',

@@ -15,8 +15,8 @@ import {
 } from '@/ui';
 import { deleteAccount, exportAllData } from './account';
 import {
-  AVAILABILITY_LABELS, addAvailability, createCategory, deleteCategory, listAvailability, listCategories, removeAvailability, updateCategory,
-  updatePreferences, updateProfile,
+  AVAILABILITY_LABELS, BLOCKED_PRESETS, BLOCKING_KINDS, createCategory, deleteCategory, groupAvailability, listAvailability, listCategories,
+  removeAvailability, replaceAvailability, updateCategory, updatePreferences, updateProfile, type AvailabilityGroup,
 } from './repo';
 
 const DEV_LINKS = [
@@ -78,7 +78,7 @@ export function ProfileScreen() {
       <Section title="Planning">
         <Group>
           <ListRow icon={SlidersHorizontal} title="Scheduling" subtitle="Day hours, focus limit, breaks, free time" chevron onPress={() => router.push('/(app)/settings/scheduling')} />
-          <ListRow icon={CalendarClock} title="Preferred hours" subtitle="Study, work, training and protected time" chevron onPress={() => router.push('/(app)/settings/hours')} />
+          <ListRow icon={CalendarClock} title="Blocked time & hours" subtitle="School, morning routine, study and training hours" chevron onPress={() => router.push('/(app)/settings/hours')} />
           <ListRow icon={Shapes} title="Categories" chevron onPress={() => router.push('/(app)/settings/categories')} />
           <ListRow icon={Bell} title="Reminders" subtitle="Habit and task reminders, quiet hours" chevron onPress={() => router.push('/(app)/settings/notifications')} />
         </Group>
@@ -217,59 +217,90 @@ export function SchedulingSettingsScreen() {
   );
 }
 
-// ───────────────────────────── Preferred hours ─────────────────────────────
+// ───────────────────────────── Blocked time & preferred hours ─────────────────────────────
 
 export function HoursSettingsScreen() {
-  const store = useStore();
-  const toast = useToast();
   const windows = useLive((s) => listAvailability(s), [], ['availability_windows']);
-  const [open, setOpen] = useState(false);
-  const groups = new Map<string, { kind: AvailabilityKind; start: string; end: string; ids: string[]; days: number[] }>();
-  for (const w of windows.data ?? []) {
-    const key = `${w.kind}|${w.start_time}|${w.end_time}`;
-    const g = groups.get(key) ?? { kind: w.kind, start: w.start_time, end: w.end_time, ids: [], days: [] };
-    g.ids.push(w.id);
-    g.days.push(w.weekday);
-    groups.set(key, g);
-  }
-  const dayNames = (days: number[]) => WEEKDAY_OPTIONS.filter((d) => days.includes(d.value)).map((d) => d.label).join(', ');
+  const [editing, setEditing] = useState<AvailabilityGroup | 'new' | null>(null);
+  const groups = groupAvailability(windows.data ?? []);
+  const dayNames = (days: number[]) => {
+    const set = new Set(days);
+    if (set.size === 7) return 'Every day';
+    if (set.size === 5 && [1, 2, 3, 4, 5].every((d) => set.has(d))) return 'Weekdays';
+    if (set.size === 2 && set.has(0) && set.has(6)) return 'Weekends';
+    return WEEKDAY_OPTIONS.filter((d) => set.has(d.value)).map((d) => d.label).join(', ');
+  };
+  const blocked = groups.filter((g) => BLOCKING_KINDS.includes(g.kind));
+  const preferred = groups.filter((g) => !BLOCKING_KINDS.includes(g.kind));
+  const row = (g: AvailabilityGroup) => (
+    <ListRow
+      key={g.key}
+      title={g.label ?? AVAILABILITY_LABELS[g.kind].label}
+      subtitle={`${dayNames(g.days)} · ${g.start}–${g.end}${g.label ? ` · ${AVAILABILITY_LABELS[g.kind].label}` : ''}`}
+      chevron
+      onPress={() => setEditing(g)}
+    />
+  );
   return (
-    <Screen edges="none" footer={<Button label="Add hours" onPress={() => setOpen(true)} />}>
-      <Text variant="callout" tone="secondary">Tell ASCEND when you prefer to study, work and train, and which time is off-limits. Tasks are placed in matching hours first.</Text>
-      {groups.size ? (
-        <Group>
-          {[...groups.values()].map((g) => (
-            <ListRow
-              key={`${g.kind}${g.start}${g.end}`}
-              title={`${AVAILABILITY_LABELS[g.kind].label} · ${g.start}–${g.end}`}
-              subtitle={dayNames(g.days)}
-              trailing={<IconButton icon={Trash2} label="Remove" onPress={() => removeAvailability(store, g.ids).then(() => toast.show('Removed')).catch((e) => toast.show(String(e), { kind: 'error' }))} />}
-            />
-          ))}
-        </Group>
-      ) : (
-        <Text variant="body" tone="tertiary">No preferred hours yet.</Text>
-      )}
-      {open ? <AddHoursSheet onClose={() => setOpen(false)} /> : null}
+    <Screen edges="none" footer={<Button label="Add time" onPress={() => setEditing('new')} />}>
+      <Text variant="callout" tone="secondary">Block out time that’s already taken, like school or your morning routine, so ASCEND never plans over it. Preferred hours tell it when you like to study, work and train.</Text>
+      <Section title="Blocked time">
+        {blocked.length ? <Group>{blocked.map(row)}</Group> : <Text variant="body" tone="tertiary">Nothing blocked out yet.</Text>}
+      </Section>
+      <Section title="Preferred hours">
+        {preferred.length ? <Group>{preferred.map(row)}</Group> : <Text variant="body" tone="tertiary">No preferred hours yet.</Text>}
+      </Section>
+      {editing ? <TimeWindowSheet group={editing === 'new' ? undefined : editing} onClose={() => setEditing(null)} /> : null}
     </Screen>
   );
 }
 
-function AddHoursSheet({ onClose }: { onClose: () => void }) {
+function TimeWindowSheet({ group, onClose }: { group?: AvailabilityGroup; onClose: () => void }) {
   const store = useStore();
   const toast = useToast();
-  const [kind, setKind] = useState<AvailabilityKind>('study');
-  const [days, setDays] = useState<number[]>([1, 2, 3, 4, 5]);
-  const [start, setStart] = useState(16 * 60);
-  const [end, setEnd] = useState(19 * 60);
+  const [kind, setKind] = useState<AvailabilityKind>(group?.kind ?? 'no_scheduling');
+  const [label, setLabel] = useState(group?.label ?? '');
+  const [days, setDays] = useState<number[]>(group?.days ?? [1, 2, 3, 4, 5]);
+  const [start, setStart] = useState(group ? parseTime(group.start) : 8 * 60 + 30);
+  const [end, setEnd] = useState(group ? parseTime(group.end) : 15 * 60 + 30);
+  const fail = (e: unknown) => toast.show(e instanceof ValidationError ? Object.values(e.fields)[0] ?? e.message : e instanceof Error ? e.message : String(e), { kind: 'error' });
   const save = () =>
-    addAvailability(store, { kind, weekdays: days, start_time: formatTime(start), end_time: formatTime(end) })
-      .then(() => { toast.show('Saved. Your plan will use these hours.'); onClose(); })
-      .catch((e) => toast.show(e instanceof Error ? e.message : String(e), { kind: 'error' }));
+    replaceAvailability(store, group?.ids ?? [], { kind, label, weekdays: days, start_time: formatTime(start), end_time: formatTime(end) })
+      .then(() => { toast.show(BLOCKING_KINDS.includes(kind) ? 'Saved. Nothing will be planned in this time.' : 'Saved. Your plan will use these hours.'); onClose(); })
+      .catch(fail);
+  const remove = async () => {
+    if (!group) return;
+    const ok = await confirm({ title: `Remove ${group.label ?? AVAILABILITY_LABELS[group.kind].label}?`, message: 'ASCEND will be able to plan in this time again.', confirmLabel: 'Remove', destructive: true });
+    if (ok) removeAvailability(store, group.ids).then(() => { toast.show('Removed'); onClose(); }).catch(fail);
+  };
+  const usePreset = (p: (typeof BLOCKED_PRESETS)[number]) => {
+    setKind('no_scheduling');
+    setLabel(p.label);
+    setDays(p.weekdays);
+    setStart(parseTime(p.start_time));
+    setEnd(parseTime(p.end_time));
+  };
   return (
-    <Sheet visible onClose={onClose} title="Add hours" footer={<Button label="Save" onPress={save} />}>
+    <Sheet
+      visible
+      onClose={onClose}
+      title={group ? 'Edit time' : 'Add time'}
+      footer={
+        <View style={{ gap: space.sm }}>
+          <Button label="Save" onPress={save} />
+          {group ? <Button label="Remove" variant="danger" onPress={() => void remove()} /> : null}
+        </View>
+      }
+    >
+      {!group ? (
+        <View style={{ gap: space.sm }}>
+          <Text variant="captionStrong" tone="secondary">Quick start</Text>
+          <ChipGroup options={BLOCKED_PRESETS.map((p) => ({ value: p.label, label: p.label }))} value={BLOCKED_PRESETS.find((p) => p.label === label)?.label ?? null} onChange={(v) => { const p = BLOCKED_PRESETS.find((x) => x.label === v); if (p) usePreset(p); }} />
+        </View>
+      ) : null}
       <ChipGroup options={(Object.keys(AVAILABILITY_LABELS) as AvailabilityKind[]).map((k) => ({ value: k, label: AVAILABILITY_LABELS[k].label }))} value={kind} onChange={setKind} />
       <Text variant="caption" tone="secondary">{AVAILABILITY_LABELS[kind].description}</Text>
+      <TextField label="Name (optional)" value={label} onChangeText={setLabel} placeholder={BLOCKING_KINDS.includes(kind) ? 'School, Morning routine, Commute…' : 'e.g. Library time'} maxLength={60} />
       <ChipGroup options={WEEKDAY_OPTIONS} value={days} onChange={(d) => setDays((cur) => (cur.includes(d) ? cur.filter((x) => x !== d) : [...cur, d]))} />
       <Row>
         <View style={{ flex: 1 }}><DateTimeField label="From" mode="time" value={start} onChange={setStart} /></View>

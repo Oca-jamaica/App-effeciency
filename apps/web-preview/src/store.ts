@@ -19,7 +19,9 @@ export interface HabitLog { id: string; kind: 'hlog'; habitId: string; date: str
 export interface CalEvent { id: string; kind: 'event'; title: string; date: string; start: number; end: number; repeat: 'none' | 'daily' | 'weekdays' | 'weekly'; exdates: string[]; locked: boolean; busy: boolean; type: 'event' | 'class' | 'work' | 'training' | 'social'; example?: boolean }
 export interface Block { id: string; kind: 'block'; date: string; start: number; end: number; type: 'task' | 'habit' | 'break'; taskId: string | null; habitId: string | null; title: string; origin: 'auto' | 'manual'; locked: boolean; status: 'planned' | 'done' | 'missed' | 'skipped' | 'unplanned'; reason: string; example?: boolean }
 export interface StudyWindow { days: number[]; from: string; to: string }
-export interface Prefs { id: 'prefs'; kind: 'prefs'; dayStart: string; dayEnd: string; maxFocus: number; minFree: number; breakAfter: number; breakLen: number; buffer: number; defaultEstimate: number; study: StudyWindow | null; theme: 'system' | 'light' | 'dark'; name: string }
+/** Time that's already taken (school, a morning routine): nothing is ever planned inside it. */
+export interface BlockedArea { id: string; label: string; days: number[]; from: string; to: string }
+export interface Prefs { id: 'prefs'; kind: 'prefs'; dayStart: string; dayEnd: string; maxFocus: number; minFree: number; breakAfter: number; breakLen: number; buffer: number; defaultEstimate: number; study: StudyWindow | null; blocked: BlockedArea[]; theme: 'system' | 'light' | 'dark'; name: string }
 
 
 // Stage 4: focus, projects, training, personal collections.
@@ -41,7 +43,7 @@ export type Rec = Goal | Milestone | Check | Note | Link | Task | Habit | HabitL
 
 export const DEFAULT_PREFS: Prefs = {
   id: 'prefs', kind: 'prefs', dayStart: '07:00', dayEnd: '22:30', maxFocus: 360, minFree: 120, breakAfter: 90, breakLen: 15, buffer: 10,
-  defaultEstimate: 30, study: null, theme: 'system', name: '',
+  defaultEstimate: 30, study: null, blocked: [], theme: 'system', name: '',
 };
 
 export const TZ = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';

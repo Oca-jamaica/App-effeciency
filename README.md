@@ -75,11 +75,15 @@ You need Node 22, a free [Supabase](https://supabase.com) project, and the **Exp
 ## Testing on your phone (Stages 2–3)
 
 1. Create an account; enter the code from the email.
-2. **Goals:** create three goals, then hold and drag to reorder them. Open one: add milestones, a note
-   (e.g. *Strategy*), a YouTube link (opens in the in-app browser), and tick a milestone — progress updates.
+2. **Goals:** create three goals, then hold and drag to reorder them. While creating a goal you can add its
+   milestones (the markers along the way) with dates; the goal then shows them on a roadmap line with today
+   marked and the next one due. Open a goal: add more milestones, a note (e.g. *Strategy*), a YouTube link
+   (opens in the in-app browser), and tick a milestone — progress updates.
 3. **Habits:** Goals → Habits → create “Gym, Mon/Wed/Fri, 60 min, evening” and “Read, daily, 20 min at 21:30”.
    Tick today's habit; open it to see the history calendar and consistency.
-4. **Planner → Calendar:** add a fixed commitment (e.g. school 08:30–15:30, every weekday, locked).
+4. **Blocked time:** Profile → Blocked time & hours (or *Block out time* in the Planner). Use the quick starts
+   for *Morning routine* or *School*, or name your own, and pick the days and hours. Nothing is planned in that
+   time, and it shows on Home and in the day view. **Planner → Calendar:** add one-off or recurring events too.
 5. **Tasks:** add tasks linked to a goal with estimates and deadlines. Use **+** on Home for quick capture,
    e.g. `Revise unit 3 tomorrow 4pm 45m !p1 #economics`.
 6. **Home:** your day is planned automatically around commitments, with breaks and protected free time.

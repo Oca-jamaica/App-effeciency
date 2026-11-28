@@ -40,7 +40,7 @@ export default function AppLayout() {
         <Stack.Screen name="task/[id]" options={{ title: '' }} />
         <Stack.Screen name="habit/[id]" options={{ title: '' }} />
         <Stack.Screen name="settings/scheduling" options={{ title: 'Scheduling' }} />
-        <Stack.Screen name="settings/hours" options={{ title: 'Preferred hours' }} />
+        <Stack.Screen name="settings/hours" options={{ title: 'Blocked time & hours' }} />
         <Stack.Screen name="settings/categories" options={{ title: 'Categories' }} />
         <Stack.Screen name="settings/sync" options={{ title: 'Sync' }} />
         <Stack.Screen name="settings/notifications" options={{ title: 'Reminders' }} />

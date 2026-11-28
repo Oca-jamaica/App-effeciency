@@ -296,3 +296,17 @@ Known limitations:
 - Supabase's Free plan caps a single upload at 50 MB (Pro: configurable).
 - Device calendar import (read-only) is not done yet; moved to Stage 5.
 
+### After Stage 4: goal markers and blocked time (requested)
+
+- **Milestones when creating a goal.** The new-goal form takes any number of milestones with optional
+  dates; the goal and its milestones are saved together or not at all, and a milestone may not fall after
+  the goal's deadline.
+- **Goal roadmap.** `goalRoadmap` (`packages/domain/src/progress.ts`) lays milestones out on a line from the
+  goal's start to its deadline with today marked, the next milestone due, and overdue ones counted; shown on
+  the goal screen.
+- **Named blocked time.** Availability windows gained a `label`
+  (`supabase/migrations/20261128000004_named_time_windows.sql`). *Blocked time* (school, a morning routine,
+  a commute) has one-tap presets, can be edited per group of days, is never planned over (the scheduler
+  already treated it as an obstacle; `features/settings/blocked.test.ts` checks this end to end), and is shown
+  on Home and in the Planner day view.
+

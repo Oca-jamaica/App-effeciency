@@ -1,6 +1,6 @@
 import { addDays, addMonths, daysInMonth, diffDays, parseTime, startOfMonth, startOfWeek, weekday } from '@ascend/domain';
 import { router, useLocalSearchParams } from 'expo-router';
-import { CalendarPlus, CheckSquare, ChevronLeft, ChevronRight, Plus } from 'lucide-react-native';
+import { Ban, CalendarPlus, CheckSquare, ChevronLeft, ChevronRight, Plus } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useLive, useStore } from '@/data/DataProvider';
@@ -8,7 +8,7 @@ import type { ScheduleBlock, Task } from '@/data/types';
 import { completeTask, listTasks, reopenTask, type TaskListKind } from '@/features/tasks/repo';
 import { useToday, useUserContext } from '@/hooks/useUser';
 import {
-  Badge, Checkbox, ChipGroup, Dot, EmptyState, Group, IconButton, ListRow, LoadingState, Row, Screen, Section, SegmentedControl, Text,
+  Badge, Button, Checkbox, ChipGroup, Dot, EmptyState, Group, IconButton, ListRow, LoadingState, Row, Screen, Section, SegmentedControl, Text,
   formatDateLabel, gutter, radius, space, useTheme, useToast,
 } from '@/ui';
 import { BlockSheet } from './BlockSheet';
@@ -95,7 +95,7 @@ function DayPane({ date, today, now }: { date: string; today: string; now: numbe
   const toast = useToast();
   const ctx = useUserContext();
   const isToday = date === today;
-  const { plan, blocks, events, isPreview } = useDayPlan(date, ctx.timeZone, isToday);
+  const { plan, blocks, events, blocked, isPreview } = useDayPlan(date, ctx.timeZone, isToday);
   const [selected, setSelected] = useState<ScheduleBlock | null>(null);
   const startHour = ctx.prefs ? Math.floor(parseTime(ctx.prefs.day_start) / 60) : 7;
   const endHour = ctx.prefs ? Math.ceil(parseTime(ctx.prefs.day_end) / 60) : 23;
@@ -117,6 +117,7 @@ function DayPane({ date, today, now }: { date: string; today: string; now: numbe
       {allDay.map((o) => (
         <Badge key={o.key} label={`All day · ${o.event.title}`} />
       ))}
+      <Button label="Block out time" icon={Ban} variant="ghost" size="sm" onPress={() => router.push('/(app)/settings/hours')} accessibilityHint="School, your morning routine and other time the planner should leave alone" />
       {isPreview && date > today ? (
         <Text variant="caption" tone="tertiary">Preview of how this day would be planned. It’s confirmed automatically on the day.</Text>
       ) : null}
@@ -127,6 +128,7 @@ function DayPane({ date, today, now }: { date: string; today: string; now: numbe
         endHour={endHour}
         blocks={shown}
         events={events}
+        blocked={blocked}
         now={now}
         onBlockPress={(b) => (b.id.startsWith('preview:') ? b.task_id && router.push({ pathname: '/(app)/task/[id]', params: { id: b.task_id } }) : setSelected(b))}
         onMoveBlock={(b, start) => {

@@ -25,7 +25,7 @@ export function HomeScreen() {
   const toast = useToast();
   const ctx = useUserContext();
   const { today, now } = useToday(ctx.timeZone);
-  const { plan, blocks, events, replan, planning } = useDayPlan(today, ctx.timeZone, true);
+  const { plan, blocks, events, blocked, replan, planning } = useDayPlan(today, ctx.timeZone, true);
   const [selected, setSelected] = useState<ScheduleBlock | null>(null);
 
   const habits = useLive((s) => habitsForDay(s, today, ctx.weekStartsOn), [today, ctx.weekStartsOn], ['habits', 'habit_logs']);
@@ -54,7 +54,7 @@ export function HomeScreen() {
   const prefs = ctx.prefs;
   const dayStart = localToUtc(today, prefs ? parseTime(prefs.day_start) : 7 * 60, ctx.timeZone);
   const dayEnd = localToUtc(today, prefs ? parseTime(prefs.day_end) : 22 * 60 + 30, ctx.timeZone);
-  const timeline = useMemo(() => buildTimeline(blocks, events, Math.max(dayStart, now - 60 * 60_000), dayEnd), [blocks, events, dayStart, dayEnd, now]);
+  const timeline = useMemo(() => buildTimeline(blocks, events, Math.max(dayStart, now - 60 * 60_000), dayEnd, blocked), [blocks, events, blocked, dayStart, dayEnd, now]);
 
   const workBlocks = blocks.filter((b) => (b.kind === 'task' || b.kind === 'habit') && b.status !== 'unplanned' && b.status !== 'skipped');
   const doneBlocks = workBlocks.filter((b) => b.status === 'done').length;
